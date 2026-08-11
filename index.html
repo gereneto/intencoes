@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Rezar por</title>
+<meta name="theme-color" content="#14142b">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Rezar por">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icone-192.png">
+<link rel="icon" href="icone-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="estilo.css">
+</head>
+<body>
+
+<div class="lampada" aria-hidden="true"></div>
+
+<!-- ───────────────── Tela principal ───────────────── -->
+<main id="tela-rezar" class="tela">
+  <header class="topo">
+    <span class="marca">Rezar por</span>
+    <div class="topo-acoes">
+      <button type="button" class="icone" id="btn-nova" aria-label="Adicionar pessoa">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+      </button>
+      <button type="button" class="icone" id="btn-lista" aria-label="Ver e editar a lista">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h10"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <section class="palco" id="palco">
+    <p class="rubrica" id="oracao-atual">&nbsp;</p>
+    <h1 class="pessoa" id="pessoa-atual">&nbsp;</h1>
+    <p class="marca-agua" id="dados-atual">&nbsp;</p>
+  </section>
+
+  <section class="vazio" id="vazio" hidden>
+    <p class="rubrica">Lista vazia</p>
+    <h1 class="pessoa">Comece por uma alma</h1>
+    <p class="marca-agua">Adicione a primeira pessoa e a oração que você reza por ela.</p>
+    <button type="button" class="botao" id="btn-primeira">Adicionar pessoa</button>
+  </section>
+
+  <footer class="rodape">
+    <button type="button" class="botao" id="btn-rezei">Rezei</button>
+    <button type="button" class="desfazer" id="btn-desfazer" hidden>Desfazer</button>
+  </footer>
+</main>
+
+<!-- ───────────────── Tela da lista ───────────────── -->
+<section id="tela-lista" class="tela folha" hidden aria-label="Lista de intenções">
+  <header class="topo">
+    <button type="button" class="icone" id="btn-voltar" aria-label="Voltar">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>
+    </button>
+    <span class="marca">Intenções</span>
+    <div class="topo-acoes">
+      <button type="button" class="icone" id="btn-nova-2" aria-label="Adicionar pessoa">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <p class="resumo" id="resumo"></p>
+  <ol class="lista" id="lista"></ol>
+
+  <div class="manutencao">
+    <h2 class="rubrica">Guardar no GitHub</h2>
+    <p class="nota">As contagens ficam no aparelho. Para levá-las ao repositório e a outros aparelhos, gere o arquivo <code>dados.js</code> e faça o commit por cima do antigo.</p>
+    <div class="linha-botoes">
+      <button type="button" class="botao secundario" id="btn-copiar">Copiar dados.js</button>
+      <button type="button" class="botao secundario" id="btn-baixar">Baixar dados.js</button>
+    </div>
+    <button type="button" class="perigo" id="btn-zerar">Zerar todas as contagens</button>
+  </div>
+</section>
+
+<!-- ───────────────── Formulário ───────────────── -->
+<section id="tela-form" class="tela folha" hidden aria-label="Dados da pessoa">
+  <header class="topo">
+    <button type="button" class="icone" id="btn-cancelar" aria-label="Cancelar">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+    </button>
+    <span class="marca" id="titulo-form">Nova pessoa</span>
+    <div class="topo-acoes"></div>
+  </header>
+
+  <div class="campos">
+    <label class="campo">
+      <span class="rubrica">Rezo por</span>
+      <input type="text" id="campo-pessoa" autocomplete="off" placeholder="Nome da pessoa">
+    </label>
+
+    <label class="campo">
+      <span class="rubrica">Oração</span>
+      <input type="text" id="campo-oracao" autocomplete="off" list="oracoes-sugeridas" placeholder="Memorare, terço, jaculatória…">
+      <datalist id="oracoes-sugeridas"></datalist>
+    </label>
+
+    <div class="campo">
+      <span class="rubrica">Frequência <em id="eco-frequencia">50</em></span>
+      <input type="range" id="campo-frequencia" min="1" max="100" step="1" value="50">
+      <p class="nota" id="nota-frequencia"></p>
+    </div>
+    <div class="campo" id="bloco-contagem" hidden>
+      <span class="rubrica">Contagem</span>
+      <p class="marca-agua" id="eco-contagem"></p>
+      <button type="button" class="ligacao" id="btn-ajustar">Ajustar contagem</button>
+    </div>
+  </div>
+
+  <div class="rodape-form">
+    <button type="button" class="botao" id="btn-salvar">Salvar</button>
+    <button type="button" class="perigo" id="btn-excluir" hidden>Excluir esta intenção</button>
+  </div>
+</section>
+
+<div class="aviso" id="aviso" role="status" aria-live="polite"></div>
+
+<script src="dados.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

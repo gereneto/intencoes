@@ -1,0 +1,17 @@
+{
+  "name": "Rezar por",
+  "short_name": "Rezar por",
+  "description": "Lista de intenções de oração com sorteio equilibrado pela frequência desejada.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#14142b",
+  "theme_color": "#14142b",
+  "lang": "pt-BR",
+  "icons": [
+    { "src": "icone-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icone-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icone-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
