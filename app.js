@@ -14,6 +14,11 @@
   const LIMITE = 4;
   const PISO = 0.15;
 
+  /* Limites de escrita: o nome da pessoa é curto, o da oração pode trazer
+     uma pequena descrição ("Jaculatória a São Josemaría pelos autores").   */
+  const LIM_PESSOA = 200;
+  const LIM_ORACAO = 500;
+
   const ORACOES_COMUNS = [
     "Memorare", "Ave-Maria", "Pai-Nosso", "Salve-Rainha", "Angelus",
     "Terço", "Uma dezena do terço", "Comunhão espiritual", "Réquiem æternam",
@@ -23,7 +28,6 @@
 
   let estado = carregar();
   let editando = null;      // id em edição, ou null quando é pessoa nova
-  let ultimaAcao = null;    // para desfazer a última marcação
 
   /* ─────────────────────────── Estado ─────────────────────────── */
 
@@ -33,6 +37,7 @@
       versao: d.versao || 0,
       atualizadoEm: d.atualizadoEm || "",
       itens: (d.itens || []).map(normalizar),
+      textos: normalizarTextos(d.textos),
       atual: null
     };
   }
@@ -40,11 +45,24 @@
   function normalizar(it) {
     return {
       id: it.id || novoId(),
-      pessoa: String(it.pessoa || "").trim(),
-      oracao: String(it.oracao || "").trim(),
+      pessoa: String(it.pessoa || "").trim().slice(0, LIM_PESSOA),
+      oracao: String(it.oracao || "").trim().slice(0, LIM_ORACAO),
       frequencia: Math.min(100, Math.max(1, Math.round(Number(it.frequencia) || 1))),
       contagem: Math.max(0, Math.round(Number(it.contagem) || 0))
     };
+  }
+
+  /* textos: { "nome da oração": "texto inteiro" } */
+  function normalizarTextos(t) {
+    const saida = {};
+    if (t && typeof t === "object") {
+      Object.keys(t).forEach(function (k) {
+        const nome = String(k).trim().slice(0, LIM_ORACAO);
+        const texto = t[k] == null ? "" : String(t[k]);
+        if (nome && texto.trim()) saida[nome] = texto;
+      });
+    }
+    return saida;
   }
 
   function carregar() {
@@ -55,6 +73,7 @@
     // Arquivo do GitHub mais novo vence: é assim que outro aparelho se atualiza.
     if ((doArquivo.versao || 0) > (local.versao || 0)) return doArquivo;
     local.itens = local.itens.map(normalizar);
+    local.textos = normalizarTextos(local.textos);
     return local;
   }
 
@@ -115,6 +134,7 @@
 
   const $ = s => document.querySelector(s);
   const telaLista = $("#tela-lista");
+  const telaOracoes = $("#tela-oracoes");
   const telaForm = $("#tela-form");
   const palco = $("#palco");
 
@@ -138,7 +158,6 @@
   function marcarRezei() {
     const it = atual();
     if (!it) return;
-    ultimaAcao = { id: it.id, anterior: it.contagem };
     it.contagem += 1;
     estado.atual = sortear();
     salvar();
@@ -146,19 +165,7 @@
     palco.classList.remove("trocando");
     void palco.offsetWidth;
     palco.classList.add("trocando");
-    $("#btn-desfazer").hidden = false;
     if (navigator.vibrate) navigator.vibrate(12);
-  }
-
-  function desfazer() {
-    if (!ultimaAcao) return;
-    const it = estado.itens.find(i => i.id === ultimaAcao.id);
-    if (it) it.contagem = ultimaAcao.anterior;
-    estado.atual = ultimaAcao.id;
-    ultimaAcao = null;
-    salvar();
-    pintarPrincipal();
-    $("#btn-desfazer").hidden = true;
   }
 
   function pintarLista() {
@@ -212,6 +219,126 @@
       });
   }
 
+  /* ─────────────────────── Orações e seus textos ─────────────────────── */
+
+  /* Todo nome de oração que aparece nas intenções, mais os que já têm texto
+     guardado (a intenção pode ter sido apagada; o texto continua servindo). */
+  function nomesDeOracoes() {
+    const nomes = new Set();
+    estado.itens.forEach(i => { if (i.oracao) nomes.add(i.oracao); });
+    Object.keys(estado.textos).forEach(n => nomes.add(n));
+    return Array.from(nomes).sort((a, b) => a.localeCompare(b, "pt-BR"));
+  }
+
+  function guardarTexto(nome, texto) {
+    if (texto.trim()) estado.textos[nome] = texto;
+    else delete estado.textos[nome];
+    salvar();
+  }
+
+  function resumoOracoes(nomes) {
+    const comTexto = nomes.filter(n => estado.textos[n]).length;
+    $("#resumo-oracoes").textContent = nomes.length
+      ? nomes.length + (nomes.length === 1 ? " oração  ·  " : " orações  ·  ") +
+        comTexto + " com texto"
+      : "Nenhuma oração ainda";
+  }
+
+  function crescer(ta) {
+    ta.style.height = "auto";
+    ta.style.height = (ta.scrollHeight + 2) + "px";
+  }
+
+  function pintarOracoes(destaque) {
+    const alvo = $("#oracoes");
+    const nomes = nomesDeOracoes();
+    resumoOracoes(nomes);
+    alvo.innerHTML = "";
+
+    nomes.forEach(function (nome) {
+      const usos = estado.itens.filter(i => i.oracao === nome).length;
+
+      const li = document.createElement("li");
+      const cab = document.createElement("button");
+      cab.type = "button";
+      cab.className = "oracao-cabeca";
+      cab.setAttribute("aria-expanded", "false");
+      cab.innerHTML = '<span class="oracao-nome"></span><span class="oracao-meta"></span>';
+      cab.querySelector(".oracao-nome").textContent = nome;
+
+      const meta = cab.querySelector(".oracao-meta");
+      function pintarMeta() {
+        meta.textContent =
+          (usos ? usos + (usos === 1 ? " intenção" : " intenções") : "sem intenção") +
+          "  ·  " + (estado.textos[nome] ? "com texto" : "sem texto");
+      }
+      pintarMeta();
+
+      const corpo = document.createElement("div");
+      corpo.className = "oracao-corpo";
+      corpo.hidden = true;
+
+      const ta = document.createElement("textarea");
+      ta.className = "oracao-texto";
+      ta.value = estado.textos[nome] || "";
+      ta.placeholder = "Escreva aqui o texto de " + nome + "…";
+      ta.setAttribute("aria-label", "Texto de " + nome);
+      corpo.appendChild(ta);
+
+      /* guarda sozinho: pausa na digitação e ao sair do campo */
+      let timer = null;
+      ta.addEventListener("input", function () {
+        crescer(ta);
+        clearTimeout(timer);
+        timer = setTimeout(function () {
+          guardarTexto(nome, ta.value);
+          pintarMeta();
+          resumoOracoes(nomesDeOracoes());
+        }, 600);
+      });
+      ta.addEventListener("blur", function () {
+        clearTimeout(timer);
+        const antes = estado.textos[nome] || "";
+        if (antes === ta.value) return;
+        guardarTexto(nome, ta.value);
+        pintarMeta();
+        resumoOracoes(nomesDeOracoes());
+        avisar(ta.value.trim() ? "Texto guardado" : "Texto apagado");
+      });
+
+      cab.addEventListener("click", function () {
+        const abrir = corpo.hidden;
+        corpo.hidden = !abrir;
+        cab.setAttribute("aria-expanded", abrir ? "true" : "false");
+        if (abrir) crescer(ta);
+      });
+
+      li.appendChild(cab);
+      li.appendChild(corpo);
+      alvo.appendChild(li);
+
+      if (destaque && destaque === nome) {
+        corpo.hidden = false;
+        cab.setAttribute("aria-expanded", "true");
+        setTimeout(function () {
+          crescer(ta);
+          li.scrollIntoView({ block: "start" });
+        }, 30);
+      }
+    });
+  }
+
+  function abrirOracoes(destaque) {
+    pintarOracoes(destaque || null);
+    telaOracoes.hidden = false;
+  }
+
+  function verTextoDaAtual() {
+    const it = atual();
+    if (!it || !it.oracao) { abrirOracoes(null); return; }
+    abrirOracoes(it.oracao);
+  }
+
   /* ─────────────────────────── Formulário ─────────────────────────── */
 
   function abrirForm(id) {
@@ -225,9 +352,22 @@
     $("#bloco-contagem").hidden = !it;
     if (it) ecoarContagem(it);
     ecoarFrequencia();
+    contar($("#campo-pessoa"), $("#conta-pessoa"), LIM_PESSOA);
+    contar($("#campo-oracao"), $("#conta-oracao"), LIM_ORACAO);
     sugestoesOracao();
     telaForm.hidden = false;
-    setTimeout(() => $("#campo-pessoa").focus(), 60);
+    // só a pessoa nova chama o teclado; ao editar, o campo espera o toque
+    if (!it) setTimeout(() => $("#campo-pessoa").focus(), 60);
+  }
+
+  /* mostra quanto falta só quando o limite está perto */
+  function contar(campo, eco, limite) {
+    const usado = campo.value.length;
+    const perto = usado >= limite - 40;
+    eco.hidden = !perto;
+    if (!perto) return;
+    eco.textContent = usado + " / " + limite;
+    eco.classList.toggle("no-limite", usado >= limite);
   }
 
   function ecoarContagem(it) {
@@ -283,8 +423,8 @@
   }
 
   function salvarForm() {
-    const pessoa = $("#campo-pessoa").value.trim();
-    const oracao = $("#campo-oracao").value.trim();
+    const pessoa = $("#campo-pessoa").value.trim().slice(0, LIM_PESSOA);
+    const oracao = $("#campo-oracao").value.trim().slice(0, LIM_ORACAO);
     const frequencia = Number($("#campo-frequencia").value);
 
     if (!pessoa) { avisar("Falta o nome da pessoa"); $("#campo-pessoa").focus(); return; }
@@ -292,7 +432,14 @@
 
     if (editando) {
       const it = estado.itens.find(i => i.id === editando);
+      const antiga = it.oracao;
       it.pessoa = pessoa; it.oracao = oracao; it.frequencia = frequencia;
+      // renomear a oração leva junto o texto, se o nome antigo ficou órfão
+      if (antiga && antiga !== oracao && estado.textos[antiga] && !estado.textos[oracao] &&
+          !estado.itens.some(i => i.oracao === antiga)) {
+        estado.textos[oracao] = estado.textos[antiga];
+        delete estado.textos[antiga];
+      }
     } else {
       estado.itens.push({ id: novoId(), pessoa, oracao, frequencia, contagem: 0 });
     }
@@ -328,11 +475,17 @@
              ", contagem: " + it.contagem + " }";
     }).join(",\n");
 
+    const textos = Object.keys(estado.textos)
+      .sort((a, b) => a.localeCompare(b, "pt-BR"))
+      .map(n => "    " + JSON.stringify(n) + ": " + JSON.stringify(estado.textos[n]))
+      .join(",\n");
+
     return "/* Rezar por — dados das intenções. Gerado pelo app em " + hoje + ". */\n\n" +
            "window.DADOS_ORACOES = {\n" +
            "  versao: " + ((estado.versao || 0) + 1) + ",\n" +
            '  atualizadoEm: "' + hoje + '",\n' +
-           "  itens: [\n" + linhas + "\n  ]\n};\n";
+           "  itens: [\n" + linhas + "\n  ],\n" +
+           "  textos: {\n" + textos + "\n  }\n};\n";
   }
 
   function marcarExportado() {
@@ -371,7 +524,6 @@
     if (!confirm("Zerar a contagem de todas as intenções?")) return;
     estado.itens.forEach(i => { i.contagem = 0; });
     estado.atual = sortear();
-    ultimaAcao = null;
     salvar();
     pintarLista();
     pintarPrincipal();
@@ -389,28 +541,82 @@
     avisoTimer = setTimeout(() => el.classList.remove("visivel"), 2600);
   }
 
+  /* ──────────────────── Botão voltar do aparelho ────────────────────
+     Cada folha aberta empurra um degrau no histórico. O "voltar" do
+     celular consome um degrau e fecha a folha de cima; quando não há
+     mais folha aberta, o degrau é reposto — o botão nunca sai do app,
+     no máximo devolve a tela principal.                              */
+
+  function degrau() {
+    try { history.pushState({ app: "rezarPor" }, ""); } catch (e) { /* sem histórico */ }
+  }
+
+  function fecharTopo() {
+    if (!telaForm.hidden) { fecharForm(); return true; }
+    if (!telaOracoes.hidden) { telaOracoes.hidden = true; return true; }
+    if (!telaLista.hidden) { telaLista.hidden = true; pintarPrincipal(); return true; }
+    return false;
+  }
+
+  window.addEventListener("popstate", function () {
+    degrau();          // repõe o degrau antes de qualquer coisa
+    fecharTopo();
+  });
+
+  try { history.replaceState({ app: "rezarPor", raiz: true }, ""); } catch (e) { /* idem */ }
+  degrau();
+
+  /* ─────────── Arrastar a barra sem chamar o teclado ───────────
+     Com texto selecionado num campo, o toque na barra devolvia o foco ao
+     campo e o teclado subia. Tira-se o foco e a seleção antes do arrasto. */
+  function soltarTeclado() {
+    const focado = document.activeElement;
+    if (focado && focado !== $("#campo-frequencia") && typeof focado.blur === "function") {
+      focado.blur();
+    }
+    const sel = window.getSelection && window.getSelection();
+    if (sel && sel.removeAllRanges) { try { sel.removeAllRanges(); } catch (e) { /* nada */ } }
+  }
+
+  ["pointerdown", "touchstart", "mousedown"].forEach(function (ev) {
+    $("#campo-frequencia").addEventListener(ev, soltarTeclado, { passive: true });
+  });
+
   /* ─────────────────────────── Ligações ─────────────────────────── */
 
   $("#btn-rezei").addEventListener("click", marcarRezei);
-  $("#btn-desfazer").addEventListener("click", desfazer);
   $("#btn-nova").addEventListener("click", () => abrirForm(null));
   $("#btn-nova-2").addEventListener("click", () => abrirForm(null));
   $("#btn-primeira").addEventListener("click", () => abrirForm(null));
-  $("#btn-lista").addEventListener("click", () => { pintarLista(); telaLista.hidden = false; });
-  $("#btn-voltar").addEventListener("click", () => { telaLista.hidden = true; pintarPrincipal(); });
+  $("#btn-lista").addEventListener("click", function () {
+    pintarLista();
+    telaLista.hidden = false;
+  });
+  $("#btn-voltar").addEventListener("click", function () {
+    telaLista.hidden = true;
+    pintarPrincipal();
+  });
+  $("#btn-oracoes").addEventListener("click", () => abrirOracoes(null));
+  $("#oracao-atual").addEventListener("click", verTextoDaAtual);
+  $("#btn-voltar-oracoes").addEventListener("click", function () { telaOracoes.hidden = true; });
   $("#btn-cancelar").addEventListener("click", fecharForm);
   $("#btn-salvar").addEventListener("click", salvarForm);
   $("#btn-excluir").addEventListener("click", excluirForm);
   $("#btn-ajustar").addEventListener("click", ajustarContagem);
   $("#campo-frequencia").addEventListener("input", ecoarFrequencia);
+  $("#campo-pessoa").addEventListener("input", function () {
+    contar($("#campo-pessoa"), $("#conta-pessoa"), LIM_PESSOA);
+  });
+  $("#campo-oracao").addEventListener("input", function () {
+    contar($("#campo-oracao"), $("#conta-oracao"), LIM_ORACAO);
+  });
   $("#btn-copiar").addEventListener("click", copiarArquivo);
   $("#btn-baixar").addEventListener("click", baixarArquivo);
   $("#btn-zerar").addEventListener("click", zerarContagens);
 
   document.addEventListener("keydown", function (e) {
     if (e.key !== "Escape") return;
-    if (!telaForm.hidden) fecharForm();
-    else if (!telaLista.hidden) telaLista.hidden = true;
+    fecharTopo();
   });
 
   $("#campo-oracao").addEventListener("keydown", function (e) {

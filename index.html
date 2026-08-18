@@ -28,6 +28,9 @@
       <button type="button" class="icone" id="btn-nova" aria-label="Adicionar pessoa">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
       </button>
+      <button type="button" class="icone" id="btn-oracoes" aria-label="Textos das orações">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 6.6C10.5 5.3 8.6 4.7 6 4.7H4v13.1h2c2.6 0 4.5.6 6 1.9 1.5-1.3 3.4-1.9 6-1.9h2V4.7h-2c-2.6 0-4.5.6-6 1.9z"/><path d="M12 6.6v13.1"/></svg>
+      </button>
       <button type="button" class="icone" id="btn-lista" aria-label="Ver e editar a lista">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h10"/></svg>
       </button>
@@ -35,7 +38,7 @@
   </header>
 
   <section class="palco" id="palco">
-    <p class="rubrica" id="oracao-atual">&nbsp;</p>
+    <button type="button" class="rubrica oracao-toque" id="oracao-atual" aria-label="Ver o texto desta oração">&nbsp;</button>
     <h1 class="pessoa" id="pessoa-atual">&nbsp;</h1>
     <p class="marca-agua" id="dados-atual">&nbsp;</p>
   </section>
@@ -49,22 +52,13 @@
 
   <footer class="rodape">
     <button type="button" class="botao" id="btn-rezei">Rezei</button>
-    <button type="button" class="desfazer" id="btn-desfazer" hidden>Desfazer</button>
   </footer>
 </main>
 
 <!-- ───────────────── Tela da lista ───────────────── -->
 <section id="tela-lista" class="tela folha" hidden aria-label="Lista de intenções">
   <header class="topo">
-    <button type="button" class="icone" id="btn-voltar" aria-label="Voltar">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>
-    </button>
     <span class="marca">Intenções</span>
-    <div class="topo-acoes">
-      <button type="button" class="icone" id="btn-nova-2" aria-label="Adicionar pessoa">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
-      </button>
-    </div>
   </header>
 
   <p class="resumo" id="resumo"></p>
@@ -72,13 +66,37 @@
 
   <div class="manutencao">
     <h2 class="rubrica">Guardar no GitHub</h2>
-    <p class="nota">As contagens ficam no aparelho. Para levá-las ao repositório e a outros aparelhos, gere o arquivo <code>dados.js</code> e faça o commit por cima do antigo.</p>
+    <p class="nota">As contagens e os textos das orações ficam no aparelho. Para levá-los ao repositório e a outros aparelhos, gere o arquivo <code>dados.js</code> e faça o commit por cima do antigo.</p>
     <div class="linha-botoes">
       <button type="button" class="botao secundario" id="btn-copiar">Copiar dados.js</button>
       <button type="button" class="botao secundario" id="btn-baixar">Baixar dados.js</button>
     </div>
     <button type="button" class="perigo" id="btn-zerar">Zerar todas as contagens</button>
   </div>
+
+  <footer class="rodape-folha">
+    <div class="linha">
+      <button type="button" class="botao secundario" id="btn-voltar">Voltar</button>
+      <button type="button" class="botao" id="btn-nova-2">Acrescentar intenção</button>
+    </div>
+  </footer>
+</section>
+
+<!-- ───────────────── Tela das orações ───────────────── -->
+<section id="tela-oracoes" class="tela folha" hidden aria-label="Textos das orações">
+  <header class="topo">
+    <span class="marca">Orações</span>
+  </header>
+
+  <p class="resumo" id="resumo-oracoes"></p>
+  <ol class="oracoes" id="oracoes"></ol>
+  <p class="nota nota-oracoes">Toque no nome para abrir. O texto é guardado sozinho, conforme você escreve.</p>
+
+  <footer class="rodape-folha">
+    <div class="linha">
+      <button type="button" class="botao secundario largo" id="btn-voltar-oracoes">Voltar</button>
+    </div>
+  </footer>
 </section>
 
 <!-- ───────────────── Formulário ───────────────── -->
@@ -94,13 +112,15 @@
   <div class="campos">
     <label class="campo">
       <span class="rubrica">Rezo por</span>
-      <input type="text" id="campo-pessoa" autocomplete="off" placeholder="Nome da pessoa">
+      <input type="text" id="campo-pessoa" autocomplete="off" maxlength="200" placeholder="Nome da pessoa">
+      <span class="contador" id="conta-pessoa" hidden></span>
     </label>
 
     <label class="campo">
       <span class="rubrica">Oração</span>
-      <input type="text" id="campo-oracao" autocomplete="off" list="oracoes-sugeridas" placeholder="Memorare, terço, jaculatória…">
+      <input type="text" id="campo-oracao" autocomplete="off" maxlength="500" list="oracoes-sugeridas" placeholder="Memorare, terço, jaculatória…">
       <datalist id="oracoes-sugeridas"></datalist>
+      <span class="contador" id="conta-oracao" hidden></span>
     </label>
 
     <div class="campo">

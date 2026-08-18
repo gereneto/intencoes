@@ -6,7 +6,11 @@
 
    Regra de precedência: se a "versao" daqui for MAIOR que a guardada no
    aparelho, o app adota este arquivo (é assim que outro celular recebe a
-   atualização). Caso contrário, prevalece o que está no aparelho.        */
+   atualização). Caso contrário, prevalece o que está no aparelho.
+
+   "textos" guarda o texto de cada oração, pela chave do nome exatamente como
+   ele aparece nas intenções. É o que a tela "Orações" mostra e edita, e segue
+   a mesma regra de precedência das contagens.                              */
 
 window.DADOS_ORACOES = {
   versao: 1,
@@ -16,5 +20,8 @@ window.DADOS_ORACOES = {
     { id: "a2", pessoa: "Meu diretor espiritual", oracao: "Ave-Maria",             frequencia: 50,  contagem: 0 },
     { id: "a3", pessoa: "Almas do purgatório",    oracao: "Réquiem æternam",       frequencia: 30,  contagem: 0 },
     { id: "a4", pessoa: "Autores da Solar",       oracao: "Jaculatória a São Josemaría", frequencia: 3, contagem: 0 }
-  ]
+  ],
+  textos: {
+    "Réquiem æternam": "Réquiem ætérnam dona eis, Dómine,\net lux perpétua lúceat eis.\nRequiéscant in pace. Amen."
+  }
 };

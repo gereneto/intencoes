@@ -3,6 +3,11 @@
 App de intenções de oração. Mostra uma pessoa e uma oração por vez; ao marcar
 **Rezei**, a contagem sobe e a próxima intenção é sorteada.
 
+São três telas: o sorteio, a lista de **Intenções** e as **Orações**, onde fica
+escrito o texto de cada oração. Tocar no nome da oração no sorteio abre o texto
+dela. O botão de voltar do aparelho fecha a tela aberta e, na tela principal,
+não faz nada — nunca sai do app.
+
 ## Publicar
 
 1. Crie o repositório e envie todos os arquivos desta pasta na raiz.
@@ -36,9 +41,20 @@ Quem entra novo na lista aparece com muita frequência nos primeiros dias, até
 alcançar a fatia que lhe cabe. Se preferir que já entre em dia, edite a
 `contagem` inicial dele no `dados.js`.
 
+## Orações
+
+A tela **Orações** reúne todo nome de oração que aparece nas intenções, mais os
+que já têm texto guardado. Cada nome abre um campo onde o texto é escrito e
+guardado sozinho, sem botão de salvar. Renomear a oração de uma intenção leva o
+texto junto, se o nome antigo tiver ficado sem uso.
+
+O nome da pessoa aceita 200 caracteres; o da oração, 500. O texto da oração não
+tem limite.
+
 ## Dados
 
-- O app trabalha com uma cópia local no aparelho (`localStorage`).
+- O app trabalha com uma cópia local no aparelho (`localStorage`) — contagens e
+  textos das orações.
 - `dados.js` é a cópia guardada no GitHub.
 - Na tela **Intenções**, "Copiar dados.js" ou "Baixar dados.js" gera o arquivo já
   com as contagens atuais e a versão somada em 1. Substitua o `dados.js` do
@@ -54,9 +70,9 @@ entre dois celulares sem exportar — o que não foi exportado não viaja.
 
 | arquivo | o que faz |
 |---|---|
-| `index.html` | as três telas: sorteio, lista, formulário |
+| `index.html` | as telas: sorteio, intenções, orações, formulário |
 | `estilo.css` | aparência |
-| `app.js` | sorteio, contagens, edição, exportação |
-| `dados.js` | as intenções versionadas no GitHub |
+| `app.js` | sorteio, contagens, edição, textos das orações, exportação |
+| `dados.js` | as intenções e os textos versionados no GitHub |
 | `sw.js` | cache para uso offline |
 | `manifest.json` | instalação na tela de início |
