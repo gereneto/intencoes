@@ -65,6 +65,34 @@
   <ol class="lista" id="lista"></ol>
 
   <div class="manutencao">
+    <h2 class="rubrica">Sincronizar sozinho</h2>
+    <p class="nota" id="sinc-estado">Desligada.</p>
+
+    <div id="sinc-campos" hidden>
+      <label class="campo-sinc">
+        <span>Dono</span>
+        <input type="text" id="sinc-dono" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="gereneto">
+      </label>
+      <label class="campo-sinc">
+        <span>Repositório de dados</span>
+        <input type="text" id="sinc-repo" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="intencoes-dados">
+      </label>
+      <label class="campo-sinc">
+        <span>Token</span>
+        <input type="password" id="sinc-token" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="github_pat_…">
+      </label>
+      <p class="nota">O token fica guardado só neste aparelho e nunca entra no <code>dados.js</code> nem no repositório do app. Use um token restrito ao repositório de dados, com permissão de escrita em Contents.</p>
+      <button type="button" class="botao secundario largo" id="btn-sinc-guardar">Guardar e sincronizar</button>
+    </div>
+
+    <div class="linha-botoes">
+      <button type="button" class="botao secundario" id="btn-sinc-config">Configurar</button>
+      <button type="button" class="botao secundario" id="btn-sinc-agora" hidden>Sincronizar agora</button>
+    </div>
+    <button type="button" class="perigo" id="btn-sinc-desligar" hidden>Desligar e apagar o token</button>
+  </div>
+
+  <div class="manutencao">
     <h2 class="rubrica">Guardar no GitHub</h2>
     <p class="nota">As contagens e os textos das orações ficam no aparelho. Para levá-los ao repositório e a outros aparelhos, gere o arquivo <code>dados.js</code> e faça o commit por cima do antigo.</p>
     <div class="linha-botoes">

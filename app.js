@@ -38,6 +38,9 @@
       atualizadoEm: d.atualizadoEm || "",
       itens: (d.itens || []).map(normalizar),
       textos: normalizarTextos(d.textos),
+      textosEm: {},
+      removidos: {},
+      forcarEnvio: false,
       atual: null
     };
   }
@@ -48,7 +51,11 @@
       pessoa: String(it.pessoa || "").trim().slice(0, LIM_PESSOA),
       oracao: String(it.oracao || "").trim().slice(0, LIM_ORACAO),
       frequencia: Math.min(100, Math.max(1, Math.round(Number(it.frequencia) || 1))),
-      contagem: Math.max(0, Math.round(Number(it.contagem) || 0))
+      contagem: Math.max(0, Math.round(Number(it.contagem) || 0)),
+      /* base: quanto esta intenção tinha na última sincronia. O que foi rezado
+         desde então é contagem − base, e é isso que se soma ao total de lá. */
+      base: Math.max(0, Math.round(Number(it.base != null ? it.base : it.contagem) || 0)),
+      editadoEm: Math.max(0, Math.round(Number(it.editadoEm) || 0))
     };
   }
 
@@ -65,15 +72,38 @@
     return saida;
   }
 
+  /* { chave: instante em ms } — datas de texto escrito e de intenção apagada */
+  function normalizarDatas(d) {
+    const saida = {};
+    if (d && typeof d === "object") {
+      Object.keys(d).forEach(function (k) {
+        const ms = Math.round(Number(d[k]) || 0);
+        if (k && ms > 0) saida[k] = ms;
+      });
+    }
+    return saida;
+  }
+
   function carregar() {
     const doArquivo = base();
     let local = null;
     try { local = JSON.parse(localStorage.getItem(CHAVE) || "null"); } catch (e) { local = null; }
     if (!local || !Array.isArray(local.itens)) return doArquivo;
     // Arquivo do GitHub mais novo vence: é assim que outro aparelho se atualiza.
-    if ((doArquivo.versao || 0) > (local.versao || 0)) return doArquivo;
+    if ((doArquivo.versao || 0) > (local.versao || 0)) {
+      // adoção em bloco: este arquivo passa a ser a verdade, também para quem
+      // sincroniza — daí a marca para empurrá-lo por cima da base compartilhada.
+      const agora = Date.now();
+      doArquivo.itens.forEach(function (i) { i.editadoEm = agora; });
+      Object.keys(doArquivo.textos).forEach(function (n) { doArquivo.textosEm[n] = agora; });
+      doArquivo.forcarEnvio = true;
+      return doArquivo;
+    }
     local.itens = local.itens.map(normalizar);
     local.textos = normalizarTextos(local.textos);
+    local.textosEm = normalizarDatas(local.textosEm);
+    local.removidos = normalizarDatas(local.removidos);
+    local.forcarEnvio = !!local.forcarEnvio;
     return local;
   }
 
@@ -161,6 +191,7 @@
     it.contagem += 1;
     estado.atual = sortear();
     salvar();
+    agendarSinc();
     pintarPrincipal();
     palco.classList.remove("trocando");
     void palco.offsetWidth;
@@ -233,7 +264,9 @@
   function guardarTexto(nome, texto) {
     if (texto.trim()) estado.textos[nome] = texto;
     else delete estado.textos[nome];
+    estado.textosEm[nome] = Date.now();   // a data viaja: é ela que decide na mescla
     salvar();
+    agendarSinc(5000);
   }
 
   function resumoOracoes(nomes) {
@@ -387,6 +420,7 @@
     if (!isFinite(n) || n < 0) { avisar("Informe um número igual ou maior que zero"); return; }
     it.contagem = n;
     salvar();
+    agendarSinc(3000);
     ecoarContagem(it);
     pintarPrincipal();
     avisar("Contagem ajustada");
@@ -434,6 +468,7 @@
       const it = estado.itens.find(i => i.id === editando);
       const antiga = it.oracao;
       it.pessoa = pessoa; it.oracao = oracao; it.frequencia = frequencia;
+      it.editadoEm = Date.now();
       // renomear a oração leva junto o texto, se o nome antigo ficou órfão
       if (antiga && antiga !== oracao && estado.textos[antiga] && !estado.textos[oracao] &&
           !estado.itens.some(i => i.oracao === antiga)) {
@@ -441,9 +476,11 @@
         delete estado.textos[antiga];
       }
     } else {
-      estado.itens.push({ id: novoId(), pessoa, oracao, frequencia, contagem: 0 });
+      estado.itens.push({ id: novoId(), pessoa, oracao, frequencia, contagem: 0,
+                          base: 0, editadoEm: Date.now() });
     }
     salvar();
+    agendarSinc(3000);
     fecharForm();
     pintarLista();
     pintarPrincipal();
@@ -454,9 +491,11 @@
     const it = estado.itens.find(i => i.id === editando);
     if (!it) return;
     if (!confirm("Excluir “" + it.pessoa + "” da lista? A contagem se perde.")) return;
+    estado.removidos[editando] = Date.now();   // lápide: impede que volte do outro aparelho
     estado.itens = estado.itens.filter(i => i.id !== editando);
     if (estado.atual === editando) estado.atual = sortear();
     salvar();
+    agendarSinc(3000);
     fecharForm();
     pintarLista();
     pintarPrincipal();
@@ -525,6 +564,7 @@
     estado.itens.forEach(i => { i.contagem = 0; });
     estado.atual = sortear();
     salvar();
+    agendarSinc(3000);
     pintarLista();
     pintarPrincipal();
     avisar("Contagens zeradas");
@@ -582,6 +622,359 @@
     $("#campo-frequencia").addEventListener(ev, soltarTeclado, { passive: true });
   });
 
+  /* ──────────────────────── Sincronia automática ────────────────────────
+     A base compartilhada é um arquivo JSON num repositório privado só de
+     dados, gravado pela API do GitHub. Cada aparelho guarda, por intenção,
+     quanto ela tinha na última sincronia (base). O que rezou desde então é
+     contagem − base, e é esse delta que se soma ao total de lá — assim os
+     dois celulares somam em vez de um sobrescrever o outro.
+
+     Regra que sustenta tudo: "base" é sempre o que este aparelho acredita
+     estar guardado lá. Só avança depois de a gravação dar certo; se a rede
+     falhar, o delta continua de pé e vai na próxima.                    */
+
+  const CHAVE_SINC = "rezarPor.sinc.v1";
+  const ESQUECER_APAGADAS = 180 * 24 * 60 * 60 * 1000;   // 180 dias
+
+  let sinc = carregarSinc();
+  let sincronizando = false;
+  let sincPendente = false;
+  let sincTimer = null;
+  let sincErro = "";
+
+  function carregarSinc() {
+    let s = null;
+    try { s = JSON.parse(localStorage.getItem(CHAVE_SINC) || "null"); } catch (e) { s = null; }
+    s = s || {};
+    return {
+      dono: String(s.dono || "").trim(),
+      repo: String(s.repo || "").trim(),
+      arquivo: String(s.arquivo || "").trim() || "contagens.json",
+      ramo: String(s.ramo || "").trim() || "main",
+      token: String(s.token || "").trim(),
+      em: Number(s.em) || 0
+    };
+  }
+
+  function salvarSinc() {
+    try { localStorage.setItem(CHAVE_SINC, JSON.stringify(sinc)); }
+    catch (e) { avisar("Não foi possível guardar a configuração"); }
+  }
+
+  function sincLigada() { return !!(sinc.dono && sinc.repo && sinc.token); }
+
+  /* ── base64 que aguenta acento ── */
+  function paraBase64(txt) {
+    const bytes = new TextEncoder().encode(txt);
+    let bin = "";
+    for (let i = 0; i < bytes.length; i += 0x8000) {
+      bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+    }
+    return btoa(bin);
+  }
+
+  function deBase64(b64) {
+    const bin = atob(String(b64).replace(/\s+/g, ""));
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return new TextDecoder().decode(bytes);
+  }
+
+  /* ── API do GitHub ── */
+  function urlArquivo() {
+    return "https://api.github.com/repos/" +
+           encodeURIComponent(sinc.dono) + "/" + encodeURIComponent(sinc.repo) +
+           "/contents/" + sinc.arquivo.split("/").map(encodeURIComponent).join("/");
+  }
+
+  function cabecalhos() {
+    return {
+      "Authorization": "Bearer " + sinc.token,
+      "Accept": "application/vnd.github+json",
+      "X-GitHub-Api-Version": "2022-11-28"
+    };
+  }
+
+  function recado(status) {
+    if (status === 401) return "o token foi recusado";
+    if (status === 403) return "o token não tem permissão de escrita";
+    if (status === 404) return "repositório não encontrado para este token";
+    if (status >= 500) return "o GitHub não respondeu";
+    return "erro " + status;
+  }
+
+  async function lerRemoto() {
+    const url = urlArquivo() + "?ref=" + encodeURIComponent(sinc.ramo) + "&_=" + Date.now();
+    const r = await fetch(url, { headers: cabecalhos(), cache: "no-store" });
+    if (r.status === 404) return { dados: baseVazia(), sha: null };   // primeira vez
+    if (!r.ok) throw new Error(recado(r.status));
+    const j = await r.json();
+    let dados;
+    try { dados = JSON.parse(deBase64(j.content)); } catch (e) { dados = baseVazia(); }
+    return { dados: normalizarRemoto(dados), sha: j.sha };
+  }
+
+  /* devolve false quando outro aparelho gravou antes: refaz a mescla */
+  async function escreverRemoto(dados, sha) {
+    const corpo = {
+      message: "Contagens — " + new Date().toISOString().slice(0, 16).replace("T", " "),
+      content: paraBase64(JSON.stringify(dados, null, 2)),
+      branch: sinc.ramo
+    };
+    if (sha) corpo.sha = sha;
+    const r = await fetch(urlArquivo(), {
+      method: "PUT",
+      headers: Object.assign({ "Content-Type": "application/json" }, cabecalhos()),
+      body: JSON.stringify(corpo)
+    });
+    if (r.status === 409 || r.status === 422) return false;
+    if (!r.ok) throw new Error(recado(r.status));
+    return true;
+  }
+
+  /* ── forma da base compartilhada ── */
+  function baseVazia() { return { atualizadoEm: "", itens: {}, textos: {}, removidos: {} }; }
+
+  function normalizarRemoto(d) {
+    const saida = baseVazia();
+    if (!d || typeof d !== "object") return saida;
+    saida.atualizadoEm = String(d.atualizadoEm || "");
+    if (d.itens && typeof d.itens === "object") {
+      Object.keys(d.itens).forEach(function (id) {
+        const it = normalizar(Object.assign({ id: id }, d.itens[id]));
+        it.base = it.contagem;
+        saida.itens[id] = it;
+      });
+    }
+    if (d.textos && typeof d.textos === "object") {
+      Object.keys(d.textos).forEach(function (n) {
+        const t = d.textos[n] || {};
+        const nome = String(n).trim().slice(0, LIM_ORACAO);
+        if (nome) saida.textos[nome] = { texto: String(t.texto == null ? "" : t.texto),
+                                         em: Math.max(0, Math.round(Number(t.em) || 0)) };
+      });
+    }
+    saida.removidos = normalizarDatas(d.removidos);
+    return saida;
+  }
+
+  function ordenado(obj) {
+    const saida = {};
+    Object.keys(obj).sort().forEach(function (k) { saida[k] = obj[k]; });
+    return saida;
+  }
+
+  function paraRemoto() {
+    const itens = {};
+    estado.itens.forEach(function (i) {
+      itens[i.id] = { pessoa: i.pessoa, oracao: i.oracao, frequencia: i.frequencia,
+                      contagem: i.contagem, editadoEm: i.editadoEm || 0 };
+    });
+    const textos = {};
+    // a data viaja mesmo para o texto apagado: é ela que apaga do outro lado
+    Object.keys(estado.textosEm).forEach(function (n) {
+      textos[n] = { texto: estado.textos[n] || "", em: estado.textosEm[n] };
+    });
+    Object.keys(estado.textos).forEach(function (n) {
+      if (!textos[n]) textos[n] = { texto: estado.textos[n], em: 0 };
+    });
+    return {
+      atualizadoEm: new Date().toISOString(),
+      itens: ordenado(itens),
+      textos: ordenado(textos),
+      removidos: ordenado(estado.removidos)
+    };
+  }
+
+  /* ── a mescla ── */
+  function mesclar(remoto) {
+    const forcar = !!estado.forcarEnvio;
+    const corte = Date.now() - ESQUECER_APAGADAS;
+
+    const removidos = {};
+    [remoto.removidos, estado.removidos].forEach(function (fonte) {
+      Object.keys(fonte).forEach(function (id) {
+        if (fonte[id] > corte && (!removidos[id] || fonte[id] > removidos[id])) {
+          removidos[id] = fonte[id];
+        }
+      });
+    });
+
+    const locais = {};
+    estado.itens.forEach(function (i) { locais[i.id] = i; });
+
+    const ids = Object.keys(locais);
+    Object.keys(remoto.itens).forEach(function (id) { if (!locais[id]) ids.push(id); });
+
+    const itens = [];
+    ids.forEach(function (id) {
+      const L = locais[id], R = remoto.itens[id];
+      // apagada em algum aparelho depois da última edição: fica apagada
+      if (removidos[id] && removidos[id] >= Math.max((L && L.editadoEm) || 0, (R && R.editadoEm) || 0)) return;
+
+      if (L && R) {
+        const delta = forcar ? 0 : (L.contagem - L.base);
+        const recente = (L.editadoEm || 0) >= (R.editadoEm || 0) ? L : R;
+        itens.push({
+          id: id,
+          pessoa: recente.pessoa, oracao: recente.oracao, frequencia: recente.frequencia,
+          contagem: Math.max(0, forcar ? L.contagem : R.contagem + delta),
+          base: R.contagem,                     // é o que está guardado lá
+          editadoEm: Math.max(L.editadoEm || 0, R.editadoEm || 0)
+        });
+      } else if (L) {
+        itens.push(Object.assign({}, L, { base: 0 }));       // ainda não está lá
+      } else {
+        itens.push(Object.assign({}, R, { base: R.contagem }));
+      }
+    });
+
+    const textos = {}, textosEm = {};
+    const nomes = {};
+    Object.keys(estado.textos).forEach(function (n) { nomes[n] = 1; });
+    Object.keys(estado.textosEm).forEach(function (n) { nomes[n] = 1; });
+    Object.keys(remoto.textos).forEach(function (n) { nomes[n] = 1; });
+    Object.keys(nomes).forEach(function (n) {
+      const lEm = estado.textosEm[n] || 0;
+      const rEm = remoto.textos[n] ? remoto.textos[n].em : 0;
+      const daqui = forcar || lEm >= rEm;
+      const txt = daqui ? (estado.textos[n] || "")
+                        : (remoto.textos[n] ? remoto.textos[n].texto : "");
+      const em = Math.max(lEm, rEm);
+      if (txt.trim()) textos[n] = txt;
+      if (em) textosEm[n] = em;
+    });
+
+    return { itens: itens, textos: textos, textosEm: textosEm, removidos: removidos };
+  }
+
+  function aplicarMescla(m) {
+    estado.itens = m.itens;
+    estado.textos = m.textos;
+    estado.textosEm = m.textosEm;
+    estado.removidos = m.removidos;
+    salvar();
+  }
+
+  function retrato() {
+    return estado.itens.map(i => i.id + ":" + i.contagem).join("|");
+  }
+
+  async function sincronizar(porOrdem) {
+    if (!sincLigada()) { if (porOrdem) avisar("A sincronia não está configurada"); return; }
+    if (sincronizando) { sincPendente = true; return; }
+    sincronizando = true;
+    sincErro = "";
+    pintarSinc();
+
+    const antes = retrato();
+    try {
+      let gravou = false;
+      for (let tentativa = 0; tentativa < 3 && !gravou; tentativa++) {
+        const lido = await lerRemoto();
+        aplicarMescla(mesclar(lido.dados));
+        gravou = await escreverRemoto(paraRemoto(), lido.sha);
+      }
+      if (gravou) {
+        // o que está lá passa a ser o que está aqui: o delta zera
+        estado.itens.forEach(function (i) { i.base = i.contagem; });
+        estado.forcarEnvio = false;
+        salvar();
+        sinc.em = Date.now();
+        salvarSinc();
+      } else {
+        sincErro = "outro aparelho gravou ao mesmo tempo";
+      }
+      const mudou = retrato() !== antes;
+      pintarPrincipal();
+      if (!telaLista.hidden) pintarLista();
+      if (!telaOracoes.hidden && mudou) pintarOracoes(null);
+      if (porOrdem && gravou) avisar("Sincronizado");
+    } catch (e) {
+      sincErro = e && e.message ? e.message : "falhou";
+      if (porOrdem) avisar("Não sincronizou: " + sincErro);
+    } finally {
+      sincronizando = false;
+      pintarSinc();
+      if (sincPendente) { sincPendente = false; agendarSinc(3000); }
+    }
+  }
+
+  function agendarSinc(atraso) {
+    if (!sincLigada()) return;
+    clearTimeout(sincTimer);
+    sincTimer = setTimeout(function () { sincronizar(false); },
+                           atraso == null ? 20000 : atraso);
+  }
+
+  /* ── a tela da sincronia ── */
+  function quandoFoi(ms) {
+    if (!ms) return "ainda não sincronizou";
+    const s = Math.round((Date.now() - ms) / 1000);
+    if (s < 90) return "agora há pouco";
+    const m = Math.round(s / 60);
+    if (m < 60) return "há " + m + " min";
+    const h = Math.round(m / 60);
+    if (h < 24) return "há " + h + (h === 1 ? " hora" : " horas");
+    return "há " + Math.round(h / 24) + " dias";
+  }
+
+  function pintarSinc() {
+    const eco = $("#sinc-estado");
+    if (!eco) return;
+    const pendente = estado.itens.reduce((s, i) => s + Math.abs(i.contagem - i.base), 0);
+    let txt;
+    if (!sincLigada()) {
+      txt = "Desligada. As contagens ficam só neste aparelho.";
+    } else if (sincronizando) {
+      txt = "Sincronizando…";
+    } else if (sincErro) {
+      txt = "A última tentativa falhou: " + sincErro + ".";
+    } else {
+      txt = "Ligada em " + sinc.dono + "/" + sinc.repo + "  ·  " + quandoFoi(sinc.em) +
+            (pendente ? "  ·  " + pendente + " por enviar" : "");
+    }
+    eco.textContent = txt;
+    eco.classList.toggle("sinc-erro", !!sincErro);
+    $("#btn-sinc-desligar").hidden = !sincLigada();
+    $("#btn-sinc-agora").hidden = !sincLigada();
+    $("#btn-sinc-config").textContent = sincLigada() ? "Trocar o token" : "Configurar";
+  }
+
+  function abrirConfigSinc() {
+    const campos = $("#sinc-campos");
+    campos.hidden = !campos.hidden;
+    if (campos.hidden) return;
+    $("#sinc-dono").value = sinc.dono;
+    $("#sinc-repo").value = sinc.repo;
+    $("#sinc-token").value = "";
+    $("#sinc-token").placeholder = sinc.token ? "token guardado — preencha só para trocar" : "github_pat_…";
+  }
+
+  function guardarConfigSinc() {
+    const dono = $("#sinc-dono").value.trim();
+    const repo = $("#sinc-repo").value.trim();
+    const token = $("#sinc-token").value.trim();
+    if (!dono || !repo) { avisar("Faltam o dono e o repositório"); return; }
+    if (!token && !sinc.token) { avisar("Falta o token"); return; }
+    sinc.dono = dono;
+    sinc.repo = repo;
+    if (token) sinc.token = token;
+    salvarSinc();
+    $("#sinc-token").value = "";
+    $("#sinc-campos").hidden = true;
+    pintarSinc();
+    sincronizar(true);
+  }
+
+  function desligarSinc() {
+    if (!confirm("Desligar a sincronia e apagar o token deste aparelho?")) return;
+    sinc.token = ""; sinc.em = 0;
+    salvarSinc();
+    pintarSinc();
+    avisar("Sincronia desligada");
+  }
+
   /* ─────────────────────────── Ligações ─────────────────────────── */
 
   $("#btn-rezei").addEventListener("click", marcarRezei);
@@ -590,6 +983,7 @@
   $("#btn-primeira").addEventListener("click", () => abrirForm(null));
   $("#btn-lista").addEventListener("click", function () {
     pintarLista();
+    pintarSinc();
     telaLista.hidden = false;
   });
   $("#btn-voltar").addEventListener("click", function () {
@@ -613,6 +1007,10 @@
   $("#btn-copiar").addEventListener("click", copiarArquivo);
   $("#btn-baixar").addEventListener("click", baixarArquivo);
   $("#btn-zerar").addEventListener("click", zerarContagens);
+  $("#btn-sinc-config").addEventListener("click", abrirConfigSinc);
+  $("#btn-sinc-guardar").addEventListener("click", guardarConfigSinc);
+  $("#btn-sinc-agora").addEventListener("click", () => sincronizar(true));
+  $("#btn-sinc-desligar").addEventListener("click", desligarSinc);
 
   document.addEventListener("keydown", function (e) {
     if (e.key !== "Escape") return;
@@ -624,6 +1022,22 @@
   });
 
   pintarPrincipal();
+  pintarSinc();
+
+  /* ── quando sincronizar ──
+     ao abrir, ao voltar para o app, de cinco em cinco minutos com a tela
+     à vista, e alguns segundos depois de cada mudança (ver agendarSinc). */
+  if (sincLigada()) agendarSinc(1500);
+
+  document.addEventListener("visibilitychange", function () {
+    if (!sincLigada()) return;
+    if (document.visibilityState === "visible") agendarSinc(800);
+    else { clearTimeout(sincTimer); sincronizar(false); }   // sai devendo nada
+  });
+
+  setInterval(function () {
+    if (sincLigada() && document.visibilityState === "visible") sincronizar(false);
+  }, 5 * 60 * 1000);
 
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", () => navigator.serviceWorker.register("sw.js"));

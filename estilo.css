@@ -431,6 +431,27 @@ input[type=range]::-moz-range-thumb{
 .manutencao .rubrica{ margin-bottom: 10px; }
 .linha-botoes{ display: flex; gap: 10px; margin-top: 16px; }
 
+/* ── sincronia ── */
+#sinc-estado.sinc-erro{ color: var(--rubrica); }
+#sinc-campos{ margin-top: 18px; }
+.campo-sinc{ display: block; margin-bottom: 14px; }
+.campo-sinc span{
+  display: block; margin-bottom: 6px;
+  font-family: var(--mono); font-size: 11px; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--bruma);
+}
+.campo-sinc input{
+  width: 100%;
+  background: none; border: none;
+  border-bottom: 1px solid rgba(241,234,220,.22);
+  border-radius: 0;
+  padding: 4px 0 8px;
+  font-family: var(--mono); font-size: 15px;
+}
+.campo-sinc input:focus{ outline: none; border-bottom-color: var(--lampada); }
+.campo-sinc input::placeholder{ color: rgba(142,138,168,.55); }
+#btn-sinc-guardar{ width: 100%; margin-top: 4px; }
+
 /* ── aviso ── */
 .aviso{
   position: fixed; left: 50%; bottom: calc(var(--base-safe) + 84px);
