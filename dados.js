@@ -13,7 +13,7 @@
    a mesma regra de precedência das contagens.                              */
 
 window.DADOS_ORACOES = {
-  versao: 2,
+  versao: 3,
   atualizadoEm: "2026-08-18",
   itens: [
     { id: "a1", pessoa: "Francisco Paixão", oracao: "Vida interior", frequencia: 35, contagem: 2 },
@@ -57,21 +57,25 @@ window.DADOS_ORACOES = {
     { id: "mspd3lhc1wve", pessoa: "Jonathan Guedes", oracao: "Glorioso São José", frequencia: 7, contagem: 0 },
     { id: "mspd3uonq2zd", pessoa: "Anderson Davi", oracao: "Glorioso São José", frequencia: 22, contagem: 1 },
     { id: "mspd4glpyfh7", pessoa: "José Melo", oracao: "Santa Teresinha", frequencia: 15, contagem: 2 },
-    { id: "mspd55o9ek4q", pessoa: "Douglas Estevam", oracao: "Bendita seja", frequencia: 60, contagem: 0 },
-    { id: "mspd5mma9tib", pessoa: "Luiz Gomes", oracao: "São Filipe Neri", frequencia: 50, contagem: 0 },
+    { id: "mspd55o9ek4q", pessoa: "Douglas Estevam", oracao: "Bendita seja", frequencia: 60, contagem: 1 },
+    { id: "mspd5mma9tib", pessoa: "Luiz Gomes", oracao: "São Filipe Neri", frequencia: 50, contagem: 1 },
     { id: "mspd601h5je0", pessoa: "Varley", oracao: "São Paulo", frequencia: 1, contagem: 0 },
     { id: "msqg27622gro", pessoa: "Sameque", oracao: "Santa Cecília", frequencia: 1, contagem: 0 },
     { id: "msrx4rbvp5sm", pessoa: "Santa Cecília", oracao: "Louvor", frequencia: 63, contagem: 1 },
-    { id: "msrx5ayenjd9", pessoa: "Santa Dulce des Pobres", oracao: "Apostolado em Salvador", frequencia: 37, contagem: 0 },
+    { id: "msrx5ayenjd9", pessoa: "Santa Dulce des Pobres", oracao: "Apostolado em Salvador", frequencia: 37, contagem: 1 },
     { id: "msrx5q3rgn92", pessoa: "Beata Guadalupe", oracao: "Paz e amor", frequencia: 61, contagem: 1 },
     { id: "msrx5ygh5uzj", pessoa: "Pedro Ballester", oracao: "Fidelidade", frequencia: 33, contagem: 0 },
     { id: "msrx873y6vyt", pessoa: "São Tomás de Aquino", oracao: "Sabedoria", frequencia: 29, contagem: 0 },
     { id: "msu7hewtga4t", pessoa: "Breno Moreira", oracao: "Jesus manso", frequencia: 32, contagem: 0 },
     { id: "msvwu5rdaole", pessoa: "João Guilherme (filho do amigo do Jessé)", oracao: "Saúde", frequencia: 22, contagem: 0 },
-    { id: "msw8p2yy1yyt", pessoa: "Bruno Mendes", oracao: "Santo Hipólito de Roma", frequencia: 26, contagem: 0 },
-    { id: "msw8pco3ov54", pessoa: "Álvaro Mendes", oracao: "Santo Hipólito de Roma", frequencia: 28, contagem: 0 }
+    { id: "msw8p2yy1yyt", pessoa: "Bruno Mendes", oracao: "Santo Hipólito de Roma", frequencia: 26, contagem: 1 },
+    { id: "msw8pco3ov54", pessoa: "Álvaro Mendes", oracao: "Santo Hipólito de Roma", frequencia: 28, contagem: 1 },
+    { id: "msyw54uswlf8", pessoa: "Gabriel Olímpio (rapaz da Barra)", oracao: "Glorioso São José", frequencia: 30, contagem: 0 }
   ],
   textos: {
-    "Réquiem æternam": "Réquiem ætérnam dona eis, Dómine,\net lux perpétua lúceat eis.\nRequiéscant in pace. Amen."
+    "Jesus manso": "Jesus, manso e humilde de coração,\nFazei o nosso coração semelhante ao Vosso",
+    "Louvor": "Santa Cecília,\nRogai a Deus para que eu O louve em todas as circunstâncias da minha vida",
+    "Requiem": "Requiem aeternam dona ei, Domine,\nEt lux perpetua luceat ei",
+    "São Paulo": "São Paulo,\nApóstolo zeloso que se converteu ao se encontrar com Cristo, e não olhou para trás, rogai pela conversão do (nome)"
   }
 };

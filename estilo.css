@@ -49,10 +49,11 @@ button{ cursor: pointer; background: none; border: none; }
 }
 
 /* ── lâmpada de vigília ──────────────────────────────────────────────
-   Três movimentos sobrepostos, de durações que não se encontram (5,3s,
-   9s e 2,9s): o conjunto nunca repete o mesmo desenho, como a chama de
-   uma vela. O elemento externo bruxuleia de lado; o halo respira; o
-   núcleo pulsa e sobe, ao modo do pavio.                              */
+   Quatro movimentos sobrepostos, de durações primas entre si (23s, 31s,
+   17s e 37s): o conjunto só se repetiria depois de mais de quatro meses.
+   Três são lentos — o elemento externo vagueia de lado, o halo respira, o
+   núcleo pulsa e sobe ao modo do pavio. O quarto são as falhas: quedas
+   curtas e desiguais de luz, como a vela que quase morre e se refaz.   */
 .lampada{
   position: fixed;
   left: 50%; top: 46%;
@@ -61,8 +62,9 @@ button{ cursor: pointer; background: none; border: none; }
   transform: translate(-50%, -50%);
   mix-blend-mode: screen;
   pointer-events: none;
-  will-change: transform;
-  animation: bruxuleio 5.3s ease-in-out infinite;
+  will-change: transform, opacity;
+  animation: bruxuleio 23s ease-in-out infinite,
+             falha 37s linear infinite;
 }
 .lampada::before,
 .lampada::after{
@@ -77,14 +79,14 @@ button{ cursor: pointer; background: none; border: none; }
               rgba(240,164,70,.20) 26%,
               rgba(214,140,60,.07) 52%,
               rgba(214,140,60,0) 72%);
-  animation: respirar 9s ease-in-out infinite;
+  animation: respirar 31s ease-in-out infinite;
 }
 .lampada::after{
   background: radial-gradient(circle,
               rgba(255,214,150,.26) 0%,
               rgba(255,183,92,.12) 30%,
               rgba(255,183,92,0) 58%);
-  animation: chama 2.9s ease-in-out infinite;
+  animation: chama 17s ease-in-out infinite;
 }
 @keyframes respirar{
   0%,100%{ opacity:.82; transform: scale(.97); }
@@ -98,6 +100,34 @@ button{ cursor: pointer; background: none; border: none; }
   61% { opacity:.70; transform: scale(.99)  translateY(0);     }
   76% { opacity:.88; transform: scale(1.03) translateY(-.8%);  }
   100%{ opacity:.55; transform: scale(.94)  translateY(0);     }
+}
+/* as falhas: em 37s de volta, cada queda dura entre .2s e .5s */
+@keyframes falha{
+  0%, 8.4%   { opacity: 1;   }
+  8.9%       { opacity: .58; }
+  9.5%       { opacity: .94; }
+  10%        { opacity: .66; }
+  10.8%      { opacity: 1;   }
+  27%        { opacity: 1;   }
+  27.5%      { opacity: .74; }
+  28.2%      { opacity: 1;   }
+  44%        { opacity: 1;   }
+  44.4%      { opacity: .5;  }
+  45.1%      { opacity: .86; }
+  45.7%      { opacity: .61; }
+  46.6%      { opacity: 1;   }
+  62%        { opacity: 1;   }
+  62.6%      { opacity: .8;  }
+  63.3%      { opacity: 1;   }
+  71%        { opacity: 1;   }
+  71.4%      { opacity: .55; }
+  72.1%      { opacity: 1;   }
+  88%        { opacity: 1;   }
+  88.5%      { opacity: .69; }
+  89.2%      { opacity: .93; }
+  89.9%      { opacity: .6;  }
+  90.9%      { opacity: 1;   }
+  100%       { opacity: 1;   }
 }
 @keyframes bruxuleio{
   0%  { transform: translate(-50%,-50%) translate(0,0)       scale(1);     }
