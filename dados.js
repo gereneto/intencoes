@@ -13,7 +13,7 @@
    a mesma regra de precedência das contagens.                              */
 
 window.DADOS_ORACOES = {
-  versao: 1,
+  versao: 2,
   atualizadoEm: "2026-08-18",
   itens: [
     { id: "a1", pessoa: "Francisco Paixão", oracao: "Vida interior", frequencia: 35, contagem: 2 },
