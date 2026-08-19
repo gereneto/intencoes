@@ -50,7 +50,7 @@ button{ cursor: pointer; background: none; border: none; }
 
 /* ── lâmpada de vigília ──────────────────────────────────────────────
    Quatro movimentos sobrepostos, de durações primas entre si (23s, 31s,
-   17s e 37s): o conjunto só se repetiria depois de mais de quatro meses.
+   17s e 53s): o conjunto só se repetiria depois de mais de dez meses.
    Três são lentos — o elemento externo vagueia de lado, o halo respira, o
    núcleo pulsa e sobe ao modo do pavio. O quarto são as falhas: quedas
    curtas e desiguais de luz, como a vela que quase morre e se refaz.   */
@@ -64,7 +64,7 @@ button{ cursor: pointer; background: none; border: none; }
   pointer-events: none;
   will-change: transform, opacity;
   animation: bruxuleio 23s ease-in-out infinite,
-             falha 37s linear infinite;
+             falha 53s ease-in-out infinite;
 }
 .lampada::before,
 .lampada::after{
@@ -101,32 +101,33 @@ button{ cursor: pointer; background: none; border: none; }
   76% { opacity:.88; transform: scale(1.03) translateY(-.8%);  }
   100%{ opacity:.55; transform: scale(.94)  translateY(0);     }
 }
-/* as falhas: em 37s de volta, cada queda dura entre .2s e .5s */
+/* as falhas: em 53s de volta, seis quedas de 1,5s a 2,7s, sem descer de .74 —
+   a vela vacila, não pisca. Três delas em degrau duplo, para não soarem iguais. */
 @keyframes falha{
-  0%, 8.4%   { opacity: 1;   }
-  8.9%       { opacity: .58; }
-  9.5%       { opacity: .94; }
-  10%        { opacity: .66; }
-  10.8%      { opacity: 1;   }
-  27%        { opacity: 1;   }
-  27.5%      { opacity: .74; }
-  28.2%      { opacity: 1;   }
-  44%        { opacity: 1;   }
-  44.4%      { opacity: .5;  }
-  45.1%      { opacity: .86; }
-  45.7%      { opacity: .61; }
-  46.6%      { opacity: 1;   }
-  62%        { opacity: 1;   }
-  62.6%      { opacity: .8;  }
-  63.3%      { opacity: 1;   }
-  71%        { opacity: 1;   }
-  71.4%      { opacity: .55; }
-  72.1%      { opacity: 1;   }
-  88%        { opacity: 1;   }
-  88.5%      { opacity: .69; }
-  89.2%      { opacity: .93; }
-  89.9%      { opacity: .6;  }
-  90.9%      { opacity: 1;   }
+  0%, 8%     { opacity: 1;   }
+  9.2%       { opacity: .78; }
+  10.4%      { opacity: .93; }
+  11.6%      { opacity: .80; }
+  13%        { opacity: 1;   }
+  25%        { opacity: 1;   }
+  26.4%      { opacity: .86; }
+  27.8%      { opacity: 1;   }
+  40%        { opacity: 1;   }
+  41.3%      { opacity: .74; }
+  42.6%      { opacity: .90; }
+  43.8%      { opacity: .80; }
+  45.2%      { opacity: 1;   }
+  57%        { opacity: 1;   }
+  58.3%      { opacity: .89; }
+  59.6%      { opacity: 1;   }
+  69%        { opacity: 1;   }
+  70.2%      { opacity: .80; }
+  71.5%      { opacity: 1;   }
+  84%        { opacity: 1;   }
+  85.3%      { opacity: .84; }
+  86.5%      { opacity: .95; }
+  87.7%      { opacity: .80; }
+  89%        { opacity: 1;   }
   100%       { opacity: 1;   }
 }
 @keyframes bruxuleio{
