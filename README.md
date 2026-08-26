@@ -46,9 +46,16 @@ alcançar a fatia que lhe cabe. Se preferir que já entre em dia, edite a
 A tela **Orações** reúne todo nome de oração que aparece nas intenções, mais os
 que já têm texto guardado. Cada nome abre um campo onde o texto é escrito e
 guardado sozinho, sem botão de salvar. O mesmo texto também se escreve no
-formulário da intenção: ao digitar o nome de uma oração que já tem texto, a
-caixa o traz. Corrigir o nome não apaga o que está escrito — a caixa só é
-trocada quando o nome novo já tiver um texto seu. Renomear a oração de uma intenção leva o
+formulário da intenção, numa caixa que é um espelho do nome da oração: ao
+digitar o nome, ela mostra o texto daquele nome, e trocar o nome troca o que a
+caixa mostra — o que estava escrito e não foi salvo se perde. Maiúscula e
+acento não separam orações: digitar `requiem` encontra o `Requiem` já
+registrado, e ao sair do campo o nome digitado encosta no que já existe, para
+não nascerem duas orações iguais com textos diferentes.
+
+Renomear a oração de uma intenção não leva o texto junto: o nome antigo
+continua com o texto dele na tela Orações, e o nome novo começa vazio. É o que
+a caixa mostra na hora de salvar. Renomear a oração de uma intenção leva o
 texto junto, se o nome antigo tiver ficado sem uso.
 
 O nome da pessoa aceita 200 caracteres; o da oração, 500. O texto da oração não

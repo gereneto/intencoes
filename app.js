@@ -47,7 +47,6 @@
 
   let estado = carregar();
   let editando = null;      // id em edição, ou null quando é pessoa nova
-  let textoSujo = false;    // o texto da oração no formulário foi mexido à mão
 
   /* ─────────────────────────── Estado ─────────────────────────── */
 
@@ -425,32 +424,46 @@
     sugestoesOracao();
     telaForm.hidden = false;
     // depois de aparecer: escondida, a caixa mede zero e não cresce com o texto
-    puxarTexto(true);
+    puxarTexto();
     // só a pessoa nova chama o teclado; ao editar, o campo espera o toque
     if (!it) setTimeout(() => $("#campo-pessoa").focus(), 60);
   }
 
-  /* O texto vale para o nome da oração, não para a intenção: várias pessoas
-     rezadas com a mesma oração dividem o mesmo texto. Ao trocar o nome, a
-     caixa puxa o texto do nome novo — mas só se ele tiver um, para que
-     corrigir o nome de uma oração não apague o que já estava escrito.    */
-  function puxarTexto(recomecando) {
-    const nome = $("#campo-oracao").value.trim().slice(0, LIM_ORACAO);
-    const caixa = $("#campo-texto");
-    const guardado = estado.textos[nome] || "";
+  /* Maiúscula e acento não podem separar duas orações que são a mesma: o
+     teclado do celular põe maiúscula sozinho e ninguém digita acento sempre
+     igual. "requiem", "Requiem" e "Réquiem" caem todos na mesma chave.    */
+  function chaveOracao(nome) {
+    return String(nome).trim().toLowerCase()
+             .normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  }
 
-    if (recomecando) {
-      textoSujo = false;
-      caixa.value = guardado;
-    } else if (!textoSujo && guardado) {
-      caixa.value = guardado;
-    }
+  /* o nome já registrado que corresponde ao digitado, ou "" se for novo */
+  function nomeCanonico(nome) {
+    const digitado = String(nome).trim().slice(0, LIM_ORACAO);
+    if (!digitado) return "";
+    if (estado.textos[digitado] !== undefined ||
+        estado.itens.some(i => i.oracao === digitado)) return digitado;
+    const chave = chaveOracao(digitado);
+    return nomesDeOracoes().find(n => chaveOracao(n) === chave) || "";
+  }
+
+  /* O texto pertence ao nome da oração, não à intenção: várias pessoas
+     rezadas com a mesma oração dividem o mesmo texto. Por isso a caixa é um
+     espelho do nome que está no campo — trocou o nome, mostra o texto do
+     nome novo, e o que estava escrito e não foi salvo se perde.          */
+  function puxarTexto() {
+    const caixa = $("#campo-texto");
+    const nota = $("#nota-texto");
+    const digitado = $("#campo-oracao").value.trim().slice(0, LIM_ORACAO);
+    const nome = nomeCanonico(digitado);
+
+    caixa.value = nome ? (estado.textos[nome] || "") : "";
     crescer(caixa);
 
-    const nota = $("#nota-texto");
-    if (!nome) { nota.textContent = ""; return; }
-    const quantos = estado.itens.filter(i => i.oracao === nome && i.id !== editando).length;
-    nota.textContent = guardado && quantos
+    if (!digitado) { nota.textContent = ""; return; }
+    const quantos = nome
+      ? estado.itens.filter(i => i.oracao === nome && i.id !== editando).length : 0;
+    nota.textContent = caixa.value && quantos
       ? "Texto de “" + nome + "”, que outras " + quantos +
         (quantos === 1 ? " intenção usa." : " intenções usam.")
       : "O texto vale para todas as intenções com esta oração.";
@@ -521,7 +534,8 @@
 
   function salvarForm() {
     const pessoa = $("#campo-pessoa").value.trim().slice(0, LIM_PESSOA);
-    const oracao = $("#campo-oracao").value.trim().slice(0, LIM_ORACAO);
+    const digitado = $("#campo-oracao").value.trim().slice(0, LIM_ORACAO);
+    const oracao = nomeCanonico(digitado) || digitado;
     const frequencia = Number($("#campo-frequencia").value);
 
     if (!pessoa) { avisar("Falta o nome da pessoa"); $("#campo-pessoa").focus(); return; }
@@ -529,17 +543,8 @@
 
     if (editando) {
       const it = estado.itens.find(i => i.id === editando);
-      const antiga = it.oracao;
       it.pessoa = pessoa; it.oracao = oracao; it.frequencia = frequencia;
       it.editadoEm = Date.now();
-      // renomear a oração leva junto o texto, se o nome antigo ficou órfão
-      if (antiga && antiga !== oracao && estado.textos[antiga] && !estado.textos[oracao] &&
-          !estado.itens.some(i => i.oracao === antiga)) {
-        estado.textos[oracao] = estado.textos[antiga];
-        estado.textosEm[oracao] = estado.textosEm[antiga] || Date.now();
-        delete estado.textos[antiga];
-        delete estado.textosEm[antiga];
-      }
     } else {
       estado.itens.push({ id: novoId(), pessoa, oracao, frequencia, contagem: 0,
                           base: 0, editadoEm: Date.now() });
@@ -1073,10 +1078,18 @@
   });
   $("#campo-oracao").addEventListener("input", function () {
     contar($("#campo-oracao"), $("#conta-oracao"), LIM_ORACAO);
-    puxarTexto(false);
+    puxarTexto();
+  });
+  $("#campo-oracao").addEventListener("blur", function () {
+    // "requiem" digitado vira o "Requiem" que já existe, para não nascer
+    // uma segunda oração com o mesmo nome e outro texto
+    const certo = nomeCanonico($("#campo-oracao").value);
+    if (certo && certo !== $("#campo-oracao").value.trim()) {
+      $("#campo-oracao").value = certo;
+      puxarTexto();
+    }
   });
   $("#campo-texto").addEventListener("input", function () {
-    textoSujo = true;
     crescer($("#campo-texto"));
   });
   document.querySelectorAll(".ordem").forEach(function (bt) {
