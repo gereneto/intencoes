@@ -62,6 +62,13 @@
   </header>
 
   <p class="resumo" id="resumo"></p>
+
+  <div class="ordenacao" role="group" aria-label="Ordenar a lista">
+    <button type="button" class="ordem" data-ordem="frequencia">Frequência</button>
+    <button type="button" class="ordem" data-ordem="alfabetica">A–Z</button>
+    <button type="button" class="ordem" data-ordem="chance">Chance</button>
+  </div>
+
   <ol class="lista" id="lista"></ol>
 
   <div class="manutencao">
@@ -149,6 +156,12 @@
       <input type="text" id="campo-oracao" autocomplete="off" maxlength="500" list="oracoes-sugeridas" placeholder="Memorare, terço, jaculatória…">
       <datalist id="oracoes-sugeridas"></datalist>
       <span class="contador" id="conta-oracao" hidden></span>
+    </label>
+
+    <label class="campo">
+      <span class="rubrica">Texto da oração</span>
+      <textarea id="campo-texto" class="oracao-texto campo-texto" placeholder="Escreva aqui o texto, se quiser"></textarea>
+      <p class="nota" id="nota-texto"></p>
     </label>
 
     <div class="campo">

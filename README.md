@@ -45,7 +45,10 @@ alcançar a fatia que lhe cabe. Se preferir que já entre em dia, edite a
 
 A tela **Orações** reúne todo nome de oração que aparece nas intenções, mais os
 que já têm texto guardado. Cada nome abre um campo onde o texto é escrito e
-guardado sozinho, sem botão de salvar. Renomear a oração de uma intenção leva o
+guardado sozinho, sem botão de salvar. O mesmo texto também se escreve no
+formulário da intenção: ao digitar o nome de uma oração que já tem texto, a
+caixa o traz. Corrigir o nome não apaga o que está escrito — a caixa só é
+trocada quando o nome novo já tiver um texto seu. Renomear a oração de uma intenção leva o
 texto junto, se o nome antigo tiver ficado sem uso.
 
 O nome da pessoa aceita 200 caracteres; o da oração, 500. O texto da oração não
@@ -112,6 +115,9 @@ Se a `versao` do `dados.js` for maior que a guardada no aparelho, ele vence
 como sempre — e, na sincronia seguinte, é empurrado por cima da base
 compartilhada, chegando aos dois celulares. É a saída para impor um estado a
 tudo de uma vez.
+
+A lista de intenções se ordena por frequência (o padrão), por ordem alfabética
+ou pela chance atual no sorteio. A escolha fica guardada no aparelho.
 
 ## Dados
 

@@ -26,8 +26,28 @@
     "Estação ao Santíssimo", "Missa"
   ];
 
+  /* Como a lista de intenções se ordena. A chance vem do sorteio, já
+     calculada em pintarLista; o desempate é sempre alfabético.          */
+  const ORDENS = {
+    frequencia: {
+      rotulo: "frequência",
+      compara: (a, b) => b.it.frequencia - a.it.frequencia ||
+                         a.it.pessoa.localeCompare(b.it.pessoa, "pt-BR")
+    },
+    alfabetica: {
+      rotulo: "A–Z",
+      compara: (a, b) => a.it.pessoa.localeCompare(b.it.pessoa, "pt-BR")
+    },
+    chance: {
+      rotulo: "chance",
+      compara: (a, b) => b.chance - a.chance ||
+                         a.it.pessoa.localeCompare(b.it.pessoa, "pt-BR")
+    }
+  };
+
   let estado = carregar();
   let editando = null;      // id em edição, ou null quando é pessoa nova
+  let textoSujo = false;    // o texto da oração no formulário foi mexido à mão
 
   /* ─────────────────────────── Estado ─────────────────────────── */
 
@@ -41,6 +61,7 @@
       textosEm: {},
       removidos: {},
       forcarEnvio: false,
+      ordem: "frequencia",
       atual: null
     };
   }
@@ -104,6 +125,7 @@
     local.textosEm = normalizarDatas(local.textosEm);
     local.removidos = normalizarDatas(local.removidos);
     local.forcarEnvio = !!local.forcarEnvio;
+    local.ordem = ORDENS[local.ordem] ? local.ordem : "frequencia";
     return local;
   }
 
@@ -199,8 +221,22 @@
     if (navigator.vibrate) navigator.vibrate(12);
   }
 
+  function trocarOrdem(qual) {
+    if (!ORDENS[qual] || estado.ordem === qual) return;
+    estado.ordem = qual;
+    salvar();
+    pintarLista();
+  }
+
+  function pintarOrdem() {
+    document.querySelectorAll(".ordem").forEach(function (bt) {
+      bt.setAttribute("aria-pressed", bt.dataset.ordem === estado.ordem ? "true" : "false");
+    });
+  }
+
   function pintarLista() {
     const lista = $("#lista");
+    pintarOrdem();
     const ch = chances();
     const somaF = estado.itens.reduce((s, i) => s + i.frequencia, 0) || 1;
     const totalC = estado.itens.reduce((s, i) => s + i.contagem, 0);
@@ -212,8 +248,7 @@
     lista.innerHTML = "";
     estado.itens
       .map((it, i) => ({ it: it, chance: ch[i] }))
-      .sort((a, b) => b.it.frequencia - a.it.frequencia ||
-                      a.it.pessoa.localeCompare(b.it.pessoa, "pt-BR"))
+      .sort((ORDENS[estado.ordem] || ORDENS.frequencia).compara)
       .forEach(function (linha) {
         const it = linha.it;
         const devido = (it.frequencia / somaF) * totalC;
@@ -389,8 +424,36 @@
     contar($("#campo-oracao"), $("#conta-oracao"), LIM_ORACAO);
     sugestoesOracao();
     telaForm.hidden = false;
+    // depois de aparecer: escondida, a caixa mede zero e não cresce com o texto
+    puxarTexto(true);
     // só a pessoa nova chama o teclado; ao editar, o campo espera o toque
     if (!it) setTimeout(() => $("#campo-pessoa").focus(), 60);
+  }
+
+  /* O texto vale para o nome da oração, não para a intenção: várias pessoas
+     rezadas com a mesma oração dividem o mesmo texto. Ao trocar o nome, a
+     caixa puxa o texto do nome novo — mas só se ele tiver um, para que
+     corrigir o nome de uma oração não apague o que já estava escrito.    */
+  function puxarTexto(recomecando) {
+    const nome = $("#campo-oracao").value.trim().slice(0, LIM_ORACAO);
+    const caixa = $("#campo-texto");
+    const guardado = estado.textos[nome] || "";
+
+    if (recomecando) {
+      textoSujo = false;
+      caixa.value = guardado;
+    } else if (!textoSujo && guardado) {
+      caixa.value = guardado;
+    }
+    crescer(caixa);
+
+    const nota = $("#nota-texto");
+    if (!nome) { nota.textContent = ""; return; }
+    const quantos = estado.itens.filter(i => i.oracao === nome && i.id !== editando).length;
+    nota.textContent = guardado && quantos
+      ? "Texto de “" + nome + "”, que outras " + quantos +
+        (quantos === 1 ? " intenção usa." : " intenções usam.")
+      : "O texto vale para todas as intenções com esta oração.";
   }
 
   /* mostra quanto falta só quando o limite está perto */
@@ -473,12 +536,19 @@
       if (antiga && antiga !== oracao && estado.textos[antiga] && !estado.textos[oracao] &&
           !estado.itens.some(i => i.oracao === antiga)) {
         estado.textos[oracao] = estado.textos[antiga];
+        estado.textosEm[oracao] = estado.textosEm[antiga] || Date.now();
         delete estado.textos[antiga];
+        delete estado.textosEm[antiga];
       }
     } else {
       estado.itens.push({ id: novoId(), pessoa, oracao, frequencia, contagem: 0,
                           base: 0, editadoEm: Date.now() });
     }
+
+    // a caixa manda no texto da oração agora nomeada no campo
+    const texto = $("#campo-texto").value;
+    if (texto !== (estado.textos[oracao] || "")) guardarTexto(oracao, texto);
+
     salvar();
     agendarSinc(3000);
     fecharForm();
@@ -1003,6 +1073,14 @@
   });
   $("#campo-oracao").addEventListener("input", function () {
     contar($("#campo-oracao"), $("#conta-oracao"), LIM_ORACAO);
+    puxarTexto(false);
+  });
+  $("#campo-texto").addEventListener("input", function () {
+    textoSujo = true;
+    crescer($("#campo-texto"));
+  });
+  document.querySelectorAll(".ordem").forEach(function (bt) {
+    bt.addEventListener("click", () => trocarOrdem(bt.dataset.ordem));
   });
   $("#btn-copiar").addEventListener("click", copiarArquivo);
   $("#btn-baixar").addEventListener("click", baixarArquivo);

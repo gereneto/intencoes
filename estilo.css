@@ -101,33 +101,37 @@ button{ cursor: pointer; background: none; border: none; }
   76% { opacity:.88; transform: scale(1.03) translateY(-.8%);  }
   100%{ opacity:.55; transform: scale(.94)  translateY(0);     }
 }
-/* as falhas: em 53s de volta, seis quedas de 1,5s a 2,7s, sem descer de .74 —
-   a vela vacila, não pisca. Três delas em degrau duplo, para não soarem iguais. */
+/* as falhas: em 53s de volta, seis quedas, nenhuma abaixo de .74 — a vela
+   vacila, não pisca. Três têm mais de um degrau, e o que separa os degraus
+   muda em cada uma (0,8s, 1,8s, e 0,8s seguido de 1,1s), assim como a altura
+   em que a luz se recupera entre eles: nenhuma repete o compasso da outra. */
 @keyframes falha{
   0%, 8%     { opacity: 1;   }
-  9.2%       { opacity: .78; }
-  10.4%      { opacity: .93; }
-  11.6%      { opacity: .80; }
-  13%        { opacity: 1;   }
+  9.2%       { opacity: .79; }   /* duplo rente: os dois degraus quase juntos */
+  10.0%      { opacity: .94; }
+  10.8%      { opacity: .83; }
+  12.2%      { opacity: 1;   }
   25%        { opacity: 1;   }
-  26.4%      { opacity: .86; }
+  26.4%      { opacity: .86; }   /* simples */
   27.8%      { opacity: 1;   }
-  40%        { opacity: 1;   }
-  41.3%      { opacity: .74; }
-  42.6%      { opacity: .90; }
-  43.8%      { opacity: .80; }
-  45.2%      { opacity: 1;   }
+  39.5%      { opacity: 1;   }
+  41.0%      { opacity: .74; }   /* duplo largo: quase se refaz no meio */
+  42.7%      { opacity: .96; }
+  44.4%      { opacity: .86; }
+  45.8%      { opacity: 1;   }
   57%        { opacity: 1;   }
-  58.3%      { opacity: .89; }
+  58.3%      { opacity: .89; }   /* simples, rasa */
   59.6%      { opacity: 1;   }
   69%        { opacity: 1;   }
-  70.2%      { opacity: .80; }
+  70.2%      { opacity: .80; }   /* simples */
   71.5%      { opacity: 1;   }
-  84%        { opacity: 1;   }
-  85.3%      { opacity: .84; }
-  86.5%      { opacity: .95; }
-  87.7%      { opacity: .80; }
-  89%        { opacity: 1;   }
+  83.4%      { opacity: 1;   }
+  84.8%      { opacity: .86; }   /* triplo: some, volta, cai fundo, hesita */
+  85.6%      { opacity: .95; }
+  86.4%      { opacity: .77; }
+  87.6%      { opacity: .92; }
+  88.4%      { opacity: .88; }
+  89.8%      { opacity: 1;   }
   100%       { opacity: 1;   }
 }
 @keyframes bruxuleio{
@@ -279,6 +283,28 @@ button{ cursor: pointer; background: none; border: none; }
 .rodape-folha .botao.secundario{ flex: 0 0 auto; min-width: 116px; padding: 14px 20px; }
 .rodape-folha .botao.largo{ flex: 1; }
 
+/* ── ordenação da lista ── */
+.ordenacao{
+  display: flex; gap: 6px;
+  margin: 0 0 18px;
+}
+.ordem{
+  flex: 1;
+  padding: 9px 6px;
+  border: 1px solid rgba(241,234,220,.16);
+  border-radius: 999px;
+  font-family: var(--mono); font-size: 11px;
+  letter-spacing: .06em; text-transform: uppercase;
+  color: var(--bruma);
+  transition: color .15s, border-color .15s, background .15s;
+}
+.ordem:hover{ color: var(--pergaminho); }
+.ordem[aria-pressed="true"]{
+  color: #2a1a05;
+  background: var(--lampada);
+  border-color: var(--lampada);
+}
+
 /* ── lista de intenções ── */
 .resumo{
   font-family: var(--mono); font-size: 12px; color: var(--bruma);
@@ -362,6 +388,9 @@ button{ cursor: pointer; background: none; border: none; }
 }
 .oracao-texto:focus{ outline: none; border-left-color: var(--lampada); }
 .oracao-texto::placeholder{ color: rgba(142,138,168,.55); }
+/* a mesma caixa, menor, dentro do formulário da intenção */
+.campo-texto{ min-height: 96px; font-size: 18px; margin-top: 2px; }
+#nota-texto:empty{ display: none; }
 .nota-oracoes{ text-align: center; margin-top: 22px; }
 
 /* ── formulário ── */
