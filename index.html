@@ -58,7 +58,15 @@
 <!-- ───────────────── Tela da lista ───────────────── -->
 <section id="tela-lista" class="tela folha" hidden aria-label="Lista de intenções">
   <header class="topo">
+    <button type="button" class="icone" id="btn-voltar-topo" aria-label="Voltar à tela principal">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>
+    </button>
     <span class="marca">Intenções</span>
+    <div class="topo-acoes">
+      <button type="button" class="icone" id="btn-dados" aria-label="Dados e sincronia">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 13.5a7.6 7.6 0 0 0 0-3l1.8-1.4-1.9-3.3-2.2.9a7.6 7.6 0 0 0-2.6-1.5L14.2 2h-3.8l-.3 2.3a7.6 7.6 0 0 0-2.6 1.5l-2.2-.9-1.9 3.3 1.8 1.4a7.6 7.6 0 0 0 0 3l-1.8 1.4 1.9 3.3 2.2-.9a7.6 7.6 0 0 0 2.6 1.5l.3 2.3h3.8l.3-2.3a7.6 7.6 0 0 0 2.6-1.5l2.2.9 1.9-3.3z"/></svg>
+      </button>
+    </div>
   </header>
 
   <p class="resumo" id="resumo"></p>
@@ -71,24 +79,50 @@
 
   <ol class="lista" id="lista"></ol>
 
+  <footer class="rodape-folha">
+    <div class="linha">
+      <button type="button" class="botao secundario" id="btn-voltar">Voltar</button>
+      <button type="button" class="botao" id="btn-nova-2">Acrescentar intenção</button>
+    </div>
+  </footer>
+</section>
+
+<!-- ───────────────── Tela das orações ───────────────── -->
+<section id="tela-oracoes" class="tela folha" hidden aria-label="Textos das orações">
+  <header class="topo">
+    <button type="button" class="icone" id="btn-voltar-oracoes" aria-label="Voltar">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>
+    </button>
+    <span class="marca">Orações</span>
+    <div class="topo-acoes"></div>
+  </header>
+
+  <p class="resumo" id="resumo-oracoes"></p>
+  <ol class="oracoes" id="oracoes"></ol>
+  <p class="nota nota-oracoes">Toque no nome para abrir. O texto é guardado sozinho, conforme você escreve.</p>
+
+</section>
+
+<!-- ───────────────── Tela de dados ───────────────── -->
+<section id="tela-dados" class="tela folha" hidden aria-label="Dados e sincronia">
+  <header class="topo">
+    <button type="button" class="icone" id="btn-voltar-dados" aria-label="Voltar">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>
+    </button>
+    <span class="marca">Dados</span>
+    <div class="topo-acoes"></div>
+  </header>
+
   <div class="manutencao">
     <h2 class="rubrica">Sincronizar sozinho</h2>
     <p class="nota" id="sinc-estado">Desligada.</p>
 
     <div id="sinc-campos" hidden>
       <label class="campo-sinc">
-        <span>Dono</span>
-        <input type="text" id="sinc-dono" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="gereneto">
-      </label>
-      <label class="campo-sinc">
-        <span>Repositório de dados</span>
-        <input type="text" id="sinc-repo" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="intencoes-dados">
-      </label>
-      <label class="campo-sinc">
         <span>Token</span>
         <input type="password" id="sinc-token" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="github_pat_…">
       </label>
-      <p class="nota">O token fica guardado só neste aparelho e nunca entra no <code>dados.js</code> nem no repositório do app. Use um token restrito ao repositório de dados, com permissão de escrita em Contents.</p>
+      <p class="nota">Token restrito a <code id="sinc-alvo"></code>, com permissão de escrita em Contents. Fica guardado só neste aparelho e nunca entra no <code>dados.js</code> nem no repositório do app.</p>
       <button type="button" class="botao secundario largo" id="btn-sinc-guardar">Guardar e sincronizar</button>
     </div>
 
@@ -109,29 +143,6 @@
     <button type="button" class="perigo" id="btn-zerar">Zerar todas as contagens</button>
   </div>
 
-  <footer class="rodape-folha">
-    <div class="linha">
-      <button type="button" class="botao secundario" id="btn-voltar">Voltar</button>
-      <button type="button" class="botao" id="btn-nova-2">Acrescentar intenção</button>
-    </div>
-  </footer>
-</section>
-
-<!-- ───────────────── Tela das orações ───────────────── -->
-<section id="tela-oracoes" class="tela folha" hidden aria-label="Textos das orações">
-  <header class="topo">
-    <span class="marca">Orações</span>
-  </header>
-
-  <p class="resumo" id="resumo-oracoes"></p>
-  <ol class="oracoes" id="oracoes"></ol>
-  <p class="nota nota-oracoes">Toque no nome para abrir. O texto é guardado sozinho, conforme você escreve.</p>
-
-  <footer class="rodape-folha">
-    <div class="linha">
-      <button type="button" class="botao secundario largo" id="btn-voltar-oracoes">Voltar</button>
-    </div>
-  </footer>
 </section>
 
 <!-- ───────────────── Formulário ───────────────── -->
@@ -178,6 +189,7 @@
 
   <div class="rodape-form">
     <button type="button" class="botao" id="btn-salvar">Salvar</button>
+    <button type="button" class="botao secundario largo" id="btn-salvar-outra" hidden>Salvar e criar outra</button>
     <button type="button" class="perigo" id="btn-excluir" hidden>Excluir esta intenção</button>
   </div>
 </section>

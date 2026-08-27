@@ -461,6 +461,10 @@ input[type=range]::-moz-range-thumb{
 .manutencao .rubrica{ margin-bottom: 10px; }
 .linha-botoes{ display: flex; gap: 10px; margin-top: 16px; }
 
+/* numa tela só de dados, o primeiro bloco não precisa de linha acima */
+.folha > .manutencao:first-of-type{ margin-top: 18px; padding-top: 0; border-top: none; }
+#btn-salvar-outra{ width: 100%; margin-top: 10px; }
+
 /* ── sincronia ── */
 #sinc-estado.sinc-erro{ color: var(--rubrica); }
 #sinc-campos{ margin-top: 18px; }

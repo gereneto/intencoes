@@ -186,6 +186,7 @@
   const $ = s => document.querySelector(s);
   const telaLista = $("#tela-lista");
   const telaOracoes = $("#tela-oracoes");
+  const telaDados = $("#tela-dados");
   const telaForm = $("#tela-form");
   const palco = $("#palco");
 
@@ -408,14 +409,17 @@
 
   /* ─────────────────────────── Formulário ─────────────────────────── */
 
-  function abrirForm(id) {
+  /* herdado: ao encadear "salvar e criar outra", a oração e a frequência da
+     anterior já vêm preenchidas — quase sempre é o que se quer repetir.  */
+  function abrirForm(id, herdado) {
     editando = id || null;
     const it = id ? estado.itens.find(i => i.id === id) : null;
     $("#titulo-form").textContent = it ? "Editar intenção" : "Nova pessoa";
     $("#campo-pessoa").value = it ? it.pessoa : "";
-    $("#campo-oracao").value = it ? it.oracao : "";
-    $("#campo-frequencia").value = it ? it.frequencia : 50;
+    $("#campo-oracao").value = it ? it.oracao : (herdado ? herdado.oracao : "");
+    $("#campo-frequencia").value = it ? it.frequencia : (herdado ? herdado.frequencia : 50);
     $("#btn-excluir").hidden = !it;
+    $("#btn-salvar-outra").hidden = !!it;
     $("#bloco-contagem").hidden = !it;
     if (it) ecoarContagem(it);
     ecoarFrequencia();
@@ -532,7 +536,7 @@
       todas.map(o => '<option value="' + o.replace(/"/g, "&quot;") + '">').join("");
   }
 
-  function salvarForm() {
+  function salvarForm(emenda) {
     const pessoa = $("#campo-pessoa").value.trim().slice(0, LIM_PESSOA);
     const digitado = $("#campo-oracao").value.trim().slice(0, LIM_ORACAO);
     const oracao = nomeCanonico(digitado) || digitado;
@@ -554,12 +558,20 @@
     const texto = $("#campo-texto").value;
     if (texto !== (estado.textos[oracao] || "")) guardarTexto(oracao, texto);
 
+    const eraEdicao = !!editando;
     salvar();
     agendarSinc(3000);
-    fecharForm();
     pintarLista();
     pintarPrincipal();
-    avisar(editando ? "Intenção salva" : "Pessoa adicionada");
+
+    if (emenda) {
+      // segue direto para a próxima, sem fechar a folha
+      abrirForm(null, { oracao: oracao, frequencia: frequencia });
+      avisar("Guardada — agora a próxima");
+      return;
+    }
+    fecharForm();
+    avisar(eraEdicao ? "Intenção salva" : "Pessoa adicionada");
   }
 
   function excluirForm() {
@@ -668,6 +680,7 @@
 
   function fecharTopo() {
     if (!telaForm.hidden) { fecharForm(); return true; }
+    if (!telaDados.hidden) { telaDados.hidden = true; return true; }
     if (!telaOracoes.hidden) { telaOracoes.hidden = true; return true; }
     if (!telaLista.hidden) { telaLista.hidden = true; pintarPrincipal(); return true; }
     return false;
@@ -709,6 +722,14 @@
      falhar, o delta continua de pé e vai na próxima.                    */
 
   const CHAVE_SINC = "rezarPor.sinc.v1";
+
+  /* Onde fica a base compartilhada. É sempre o mesmo lugar, então não há o que
+     perguntar: do aparelho só se pede o token.                            */
+  const SINC_DONO = "gereneto";
+  const SINC_REPO = "intencoes-dados";
+  const SINC_ARQUIVO = "contagens.json";
+  const SINC_RAMO = "main";
+  const SINC_ALVO = SINC_DONO + "/" + SINC_REPO;
   const ESQUECER_APAGADAS = 180 * 24 * 60 * 60 * 1000;   // 180 dias
 
   let sinc = carregarSinc();
@@ -721,14 +742,7 @@
     let s = null;
     try { s = JSON.parse(localStorage.getItem(CHAVE_SINC) || "null"); } catch (e) { s = null; }
     s = s || {};
-    return {
-      dono: String(s.dono || "").trim(),
-      repo: String(s.repo || "").trim(),
-      arquivo: String(s.arquivo || "").trim() || "contagens.json",
-      ramo: String(s.ramo || "").trim() || "main",
-      token: String(s.token || "").trim(),
-      em: Number(s.em) || 0
-    };
+    return { token: String(s.token || "").trim(), em: Number(s.em) || 0 };
   }
 
   function salvarSinc() {
@@ -736,7 +750,7 @@
     catch (e) { avisar("Não foi possível guardar a configuração"); }
   }
 
-  function sincLigada() { return !!(sinc.dono && sinc.repo && sinc.token); }
+  function sincLigada() { return !!sinc.token; }
 
   /* ── base64 que aguenta acento ── */
   function paraBase64(txt) {
@@ -758,8 +772,8 @@
   /* ── API do GitHub ── */
   function urlArquivo() {
     return "https://api.github.com/repos/" +
-           encodeURIComponent(sinc.dono) + "/" + encodeURIComponent(sinc.repo) +
-           "/contents/" + sinc.arquivo.split("/").map(encodeURIComponent).join("/");
+           encodeURIComponent(SINC_DONO) + "/" + encodeURIComponent(SINC_REPO) +
+           "/contents/" + SINC_ARQUIVO.split("/").map(encodeURIComponent).join("/");
   }
 
   function cabecalhos() {
@@ -779,7 +793,7 @@
   }
 
   async function lerRemoto() {
-    const url = urlArquivo() + "?ref=" + encodeURIComponent(sinc.ramo) + "&_=" + Date.now();
+    const url = urlArquivo() + "?ref=" + encodeURIComponent(SINC_RAMO) + "&_=" + Date.now();
     const r = await fetch(url, { headers: cabecalhos(), cache: "no-store" });
     if (r.status === 404) return { dados: baseVazia(), sha: null };   // primeira vez
     if (!r.ok) throw new Error(recado(r.status));
@@ -794,7 +808,7 @@
     const corpo = {
       message: "Contagens — " + new Date().toISOString().slice(0, 16).replace("T", " "),
       content: paraBase64(JSON.stringify(dados, null, 2)),
-      branch: sinc.ramo
+      branch: SINC_RAMO
     };
     if (sha) corpo.sha = sha;
     const r = await fetch(urlArquivo(), {
@@ -1006,7 +1020,7 @@
     } else if (sincErro) {
       txt = "A última tentativa falhou: " + sincErro + ".";
     } else {
-      txt = "Ligada em " + sinc.dono + "/" + sinc.repo + "  ·  " + quandoFoi(sinc.em) +
+      txt = "Ligada em " + SINC_ALVO + "  ·  " + quandoFoi(sinc.em) +
             (pendente ? "  ·  " + pendente + " por enviar" : "");
     }
     eco.textContent = txt;
@@ -1020,21 +1034,16 @@
     const campos = $("#sinc-campos");
     campos.hidden = !campos.hidden;
     if (campos.hidden) return;
-    $("#sinc-dono").value = sinc.dono;
-    $("#sinc-repo").value = sinc.repo;
+    $("#sinc-alvo").textContent = SINC_ALVO;
     $("#sinc-token").value = "";
     $("#sinc-token").placeholder = sinc.token ? "token guardado — preencha só para trocar" : "github_pat_…";
+    setTimeout(() => $("#sinc-token").focus(), 60);
   }
 
   function guardarConfigSinc() {
-    const dono = $("#sinc-dono").value.trim();
-    const repo = $("#sinc-repo").value.trim();
     const token = $("#sinc-token").value.trim();
-    if (!dono || !repo) { avisar("Faltam o dono e o repositório"); return; }
-    if (!token && !sinc.token) { avisar("Falta o token"); return; }
-    sinc.dono = dono;
-    sinc.repo = repo;
-    if (token) sinc.token = token;
+    if (!token) { avisar("Falta o token"); return; }
+    sinc.token = token;
     salvarSinc();
     $("#sinc-token").value = "";
     $("#sinc-campos").hidden = true;
@@ -1056,20 +1065,25 @@
   $("#btn-nova").addEventListener("click", () => abrirForm(null));
   $("#btn-nova-2").addEventListener("click", () => abrirForm(null));
   $("#btn-primeira").addEventListener("click", () => abrirForm(null));
+  function fecharLista() { telaLista.hidden = true; pintarPrincipal(); }
+
   $("#btn-lista").addEventListener("click", function () {
     pintarLista();
-    pintarSinc();
     telaLista.hidden = false;
   });
-  $("#btn-voltar").addEventListener("click", function () {
-    telaLista.hidden = true;
-    pintarPrincipal();
+  $("#btn-voltar").addEventListener("click", fecharLista);
+  $("#btn-voltar-topo").addEventListener("click", fecharLista);
+  $("#btn-dados").addEventListener("click", function () {
+    pintarSinc();
+    telaDados.hidden = false;
   });
+  $("#btn-voltar-dados").addEventListener("click", function () { telaDados.hidden = true; });
   $("#btn-oracoes").addEventListener("click", () => abrirOracoes(null));
   $("#oracao-atual").addEventListener("click", verTextoDaAtual);
   $("#btn-voltar-oracoes").addEventListener("click", function () { telaOracoes.hidden = true; });
   $("#btn-cancelar").addEventListener("click", fecharForm);
-  $("#btn-salvar").addEventListener("click", salvarForm);
+  $("#btn-salvar").addEventListener("click", function () { salvarForm(false); });
+  $("#btn-salvar-outra").addEventListener("click", function () { salvarForm(true); });
   $("#btn-excluir").addEventListener("click", excluirForm);
   $("#btn-ajustar").addEventListener("click", ajustarContagem);
   $("#campo-frequencia").addEventListener("input", ecoarFrequencia);
@@ -1109,7 +1123,7 @@
   });
 
   $("#campo-oracao").addEventListener("keydown", function (e) {
-    if (e.key === "Enter") salvarForm();
+    if (e.key === "Enter") salvarForm(false);
   });
 
   pintarPrincipal();

@@ -3,10 +3,12 @@
 App de intenções de oração. Mostra uma pessoa e uma oração por vez; ao marcar
 **Rezei**, a contagem sobe e a próxima intenção é sorteada.
 
-São três telas: o sorteio, a lista de **Intenções** e as **Orações**, onde fica
-escrito o texto de cada oração. Tocar no nome da oração no sorteio abre o texto
-dela. O botão de voltar do aparelho fecha a tela aberta e, na tela principal,
-não faz nada — nunca sai do app.
+São quatro telas: o sorteio, a lista de **Intenções**, as **Orações**, onde fica
+escrito o texto de cada oração, e **Dados**, com a sincronia e a exportação
+(engrenagem no alto das Intenções). Tocar no nome da oração no sorteio abre o
+texto dela. Toda tela secundária tem o voltar no alto, à esquerda. O botão de
+voltar do aparelho fecha a tela aberta e, na tela principal, não faz nada —
+nunca sai do app.
 
 ## Publicar
 
@@ -63,7 +65,7 @@ tem limite.
 
 ## Sincronia automática
 
-Liga-se na tela **Intenções**, em "Sincronizar sozinho". Com ela ligada, os
+Liga-se na tela **Dados**, em "Sincronizar sozinho". Com ela ligada, os
 celulares somam as rezas um do outro sozinhos, sem exportar nada à mão.
 
 ### Como montar, uma vez só
@@ -76,9 +78,10 @@ celulares somam as rezas um do outro sozinhos, sem exportar nada à mão.
    - Repository access: **Only select repositories** → o repositório de dados.
    - Permissions → Repository permissions → **Contents: Read and write**.
    - Validade: a que você quiser; quando vencer, é só gerar outro e colar.
-3. No app, tela Intenções → Sincronizar sozinho → **Configurar**. Preencha o
-   dono, o nome do repositório de dados e cole o token. "Guardar e sincronizar"
-   já faz a primeira troca e cria o `contagens.json` lá dentro.
+3. No app, Intenções → engrenagem → Dados → Sincronizar sozinho →
+   **Configurar**. Só o token é pedido: o dono e o repositório estão fixos no
+   `app.js` (`SINC_DONO` e `SINC_REPO`). "Guardar e sincronizar" já faz a
+   primeira troca e cria o `contagens.json` lá dentro.
 4. Repita o passo 3 no outro celular, com o mesmo repositório e um token igual.
 
 O token fica no armazenamento do aparelho e nunca entra no `dados.js` nem neste
@@ -126,6 +129,10 @@ tudo de uma vez.
 A lista de intenções se ordena por frequência (o padrão), por ordem alfabética
 ou pela chance atual no sorteio. A escolha fica guardada no aparelho.
 
+No formulário de uma pessoa nova, "Salvar e criar outra" guarda e já abre a
+próxima, herdando a oração e a frequência da anterior — só o nome fica em
+branco. É o caminho para cadastrar várias de uma vez.
+
 ## Dados
 
 - O app trabalha com uma cópia local no aparelho (`localStorage`) — contagens e
@@ -146,7 +153,7 @@ que não foi exportado não viaja. Com ela ligada, isso deixa de ser um problema
 
 | arquivo | o que faz |
 |---|---|
-| `index.html` | as telas: sorteio, intenções, orações, formulário |
+| `index.html` | as telas: sorteio, intenções, orações, dados, formulário |
 | `estilo.css` | aparência |
 | `app.js` | sorteio, contagens, edição, textos das orações, sincronia, exportação |
 | `dados.js` | as intenções e os textos versionados no GitHub |
