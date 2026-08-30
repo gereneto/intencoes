@@ -1,4 +1,4 @@
-/* Rezar por — lógica do app.
+/* Intenções — lógica do app.
    Sorteio ponderado pela distância entre o que já foi rezado e a meta. */
 
 (function () {
@@ -47,6 +47,8 @@
 
   let estado = carregar();
   let editando = null;      // id em edição, ou null quando é pessoa nova
+  let busca = "";           // filtro da lista; não se guarda entre aberturas
+  let pausaRezei = null;    // silêncio de dois segundos depois de "Rezei"
 
   /* ─────────────────────────── Estado ─────────────────────────── */
 
@@ -198,7 +200,8 @@
     $("#vazio").hidden = temItens;
     palco.hidden = !temItens;
     $("#btn-rezei").hidden = !temItens;
-    if (!it) return;
+    // durante o silêncio a tela fica apagada, mesmo que chegue uma sincronia
+    if (!it || pausaRezei) return;
 
     $("#oracao-atual").textContent = it.oracao || "Oração";
     $("#pessoa-atual").textContent = it.pessoa || "Sem nome";
@@ -207,18 +210,43 @@
       "  ·  frequência " + it.frequencia;
   }
 
+  /* A contagem sobe na hora; só a tela espera. Dois segundos de escuro entre
+     uma intenção e a outra, para a oração não emendar na seguinte.       */
   function marcarRezei() {
+    if (pausaRezei) return;
     const it = atual();
     if (!it) return;
     it.contagem += 1;
     estado.atual = sortear();
     salvar();
     agendarSinc();
-    pintarPrincipal();
-    palco.classList.remove("trocando");
-    void palco.offsetWidth;
-    palco.classList.add("trocando");
     if (navigator.vibrate) navigator.vibrate(12);
+
+    palco.classList.remove("trocando");
+    palco.classList.add("apagando");
+    $("#btn-rezei").disabled = true;
+
+    pausaRezei = setTimeout(function () {
+      pausaRezei = null;
+      palco.classList.remove("apagando");
+      pintarPrincipal();
+      void palco.offsetWidth;
+      palco.classList.add("trocando");
+      $("#btn-rezei").disabled = false;
+    }, 2000);
+  }
+
+  /* Posto da intenção na busca: quem começa com o que foi digitado vem antes
+     de quem só contém, e o nome da pessoa vem antes do nome da oração.
+     -1 quer dizer que ficou de fora.                                     */
+  function posto(it, alvo) {
+    const pessoa = semAcento(it.pessoa);
+    const oracao = semAcento(it.oracao);
+    if (pessoa.indexOf(alvo) === 0) return 0;
+    if (pessoa.indexOf(alvo) > 0) return 1;
+    if (oracao.indexOf(alvo) === 0) return 2;
+    if (oracao.indexOf(alvo) > 0) return 3;
+    return -1;
   }
 
   function trocarOrdem(qual) {
@@ -234,21 +262,40 @@
     });
   }
 
+  function pintarBusca() {
+    $("#campo-busca").value = busca;
+    $("#btn-limpar-busca").hidden = !busca;
+  }
+
   function pintarLista() {
     const lista = $("#lista");
     pintarOrdem();
+    $("#btn-limpar-busca").hidden = !busca;
     const ch = chances();
     const somaF = estado.itens.reduce((s, i) => s + i.frequencia, 0) || 1;
     const totalC = estado.itens.reduce((s, i) => s + i.contagem, 0);
 
-    $("#resumo").textContent = estado.itens.length
-      ? estado.itens.length + " intenções  ·  " + totalC + " orações rezadas"
-      : "Nenhuma intenção ainda";
+    const alvo = semAcento(busca);
+    let linhas = estado.itens.map((it, i) => ({ it: it, chance: ch[i] }));
+    if (alvo) {
+      linhas = linhas
+        .map(l => Object.assign(l, { posto: posto(l.it, alvo) }))
+        .filter(l => l.posto >= 0);
+    }
+
+    const ordem = (ORDENS[estado.ordem] || ORDENS.frequencia).compara;
+    linhas.sort(alvo ? ((a, b) => (a.posto - b.posto) || ordem(a, b)) : ordem);
+
+    $("#resumo").textContent = !estado.itens.length
+      ? "Nenhuma intenção ainda"
+      : alvo
+        ? (linhas.length
+            ? linhas.length + " de " + estado.itens.length + " intenções"
+            : "Nada com “" + busca.trim() + "”")
+        : estado.itens.length + " intenções  ·  " + totalC + " orações rezadas";
 
     lista.innerHTML = "";
-    estado.itens
-      .map((it, i) => ({ it: it, chance: ch[i] }))
-      .sort((ORDENS[estado.ordem] || ORDENS.frequencia).compara)
+    linhas
       .forEach(function (linha) {
         const it = linha.it;
         const devido = (it.frequencia / somaF) * totalC;
@@ -433,11 +480,12 @@
     if (!it) setTimeout(() => $("#campo-pessoa").focus(), 60);
   }
 
-  /* Maiúscula e acento não podem separar duas orações que são a mesma: o
-     teclado do celular põe maiúscula sozinho e ninguém digita acento sempre
-     igual. "requiem", "Requiem" e "Réquiem" caem todos na mesma chave.    */
-  function chaveOracao(nome) {
-    return String(nome).trim().toLowerCase()
+  /* Maiúscula e acento não podem separar duas orações que são a mesma, nem
+     atrapalhar a busca: o teclado do celular põe maiúscula sozinho e ninguém
+     digita acento sempre igual. "requiem", "Requiem" e "Réquiem" caem todos
+     na mesma chave.                                                      */
+  function semAcento(txt) {
+    return String(txt).trim().toLowerCase()
              .normalize("NFD").replace(/[\u0300-\u036f]/g, "");
   }
 
@@ -447,8 +495,8 @@
     if (!digitado) return "";
     if (estado.textos[digitado] !== undefined ||
         estado.itens.some(i => i.oracao === digitado)) return digitado;
-    const chave = chaveOracao(digitado);
-    return nomesDeOracoes().find(n => chaveOracao(n) === chave) || "";
+    const chave = semAcento(digitado);
+    return nomesDeOracoes().find(n => semAcento(n) === chave) || "";
   }
 
   /* O texto pertence ao nome da oração, não à intenção: várias pessoas
@@ -606,7 +654,7 @@
       .map(n => "    " + JSON.stringify(n) + ": " + JSON.stringify(estado.textos[n]))
       .join(",\n");
 
-    return "/* Rezar por — dados das intenções. Gerado pelo app em " + hoje + ". */\n\n" +
+    return "/* Intenções — dados das intenções. Gerado pelo app em " + hoje + ". */\n\n" +
            "window.DADOS_ORACOES = {\n" +
            "  versao: " + ((estado.versao || 0) + 1) + ",\n" +
            '  atualizadoEm: "' + hoje + '",\n' +
@@ -1025,6 +1073,8 @@
     }
     eco.textContent = txt;
     eco.classList.toggle("sinc-erro", !!sincErro);
+    // o alerta no alto da tela principal só aparece quando há o que avisar
+    $("#sinc-alerta").hidden = !(sincLigada() && sincErro);
     $("#btn-sinc-desligar").hidden = !sincLigada();
     $("#btn-sinc-agora").hidden = !sincLigada();
     $("#btn-sinc-config").textContent = sincLigada() ? "Trocar o token" : "Configurar";
@@ -1068,8 +1118,24 @@
   function fecharLista() { telaLista.hidden = true; pintarPrincipal(); }
 
   $("#btn-lista").addEventListener("click", function () {
+    busca = "";
+    pintarBusca();
     pintarLista();
     telaLista.hidden = false;
+  });
+  $("#campo-busca").addEventListener("input", function () {
+    busca = $("#campo-busca").value;
+    pintarLista();
+  });
+  $("#btn-limpar-busca").addEventListener("click", function () {
+    busca = "";
+    pintarBusca();
+    pintarLista();
+    $("#campo-busca").focus();
+  });
+  $("#sinc-alerta").addEventListener("click", function () {
+    pintarSinc();
+    telaDados.hidden = false;
   });
   $("#btn-voltar").addEventListener("click", fecharLista);
   $("#btn-voltar-topo").addEventListener("click", fecharLista);
@@ -1138,6 +1204,11 @@
     if (!sincLigada()) return;
     if (document.visibilityState === "visible") agendarSinc(800);
     else { clearTimeout(sincTimer); sincronizar(false); }   // sai devendo nada
+  });
+
+  // no celular o app às vezes é encerrado sem passar por visibilitychange
+  window.addEventListener("pagehide", function () {
+    if (sincLigada()) { clearTimeout(sincTimer); sincronizar(false); }
   });
 
   setInterval(function () {

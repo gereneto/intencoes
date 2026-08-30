@@ -1,5 +1,5 @@
-/* Rezar por — cache do app. Suba o número da versão a cada mudança nos arquivos. */
-const CACHE = "rezar-por-v8";
+/* Intenções — cache do app. Suba o número da versão a cada mudança nos arquivos. */
+const CACHE = "rezar-por-v9";
 const ARQUIVOS = [
   "./", "./index.html", "./estilo.css", "./app.js", "./dados.js",
   "./manifest.json", "./icone-192.png", "./icone-512.png"

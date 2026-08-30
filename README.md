@@ -1,11 +1,14 @@
-# Rezar por
+# Intenções
 
 App de intenções de oração. Mostra uma pessoa e uma oração por vez; ao marcar
-**Rezei**, a contagem sobe e a próxima intenção é sorteada.
+**Rezei**, a contagem sobe, a tela se apaga por dois segundos e só então a
+próxima intenção aparece.
 
-São quatro telas: o sorteio, a lista de **Intenções**, as **Orações**, onde fica
+São quatro telas: o sorteio, a lista de **Todas as intenções**, as **Orações**, onde fica
 escrito o texto de cada oração, e **Dados**, com a sincronia e a exportação
-(engrenagem no alto das Intenções). Tocar no nome da oração no sorteio abre o
+(engrenagem no alto da lista). A lista tem busca por pessoa ou oração: primeiro
+vêm as que começam pelo que foi digitado, depois as que só o contêm, sem
+distinguir maiúscula nem acento. Tocar no nome da oração no sorteio abre o
 texto dela. Toda tela secundária tem o voltar no alto, à esquerda. O botão de
 voltar do aparelho fecha a tela aberta e, na tela principal, não faz nada —
 nunca sai do app.
@@ -78,7 +81,7 @@ celulares somam as rezas um do outro sozinhos, sem exportar nada à mão.
    - Repository access: **Only select repositories** → o repositório de dados.
    - Permissions → Repository permissions → **Contents: Read and write**.
    - Validade: a que você quiser; quando vencer, é só gerar outro e colar.
-3. No app, Intenções → engrenagem → Dados → Sincronizar sozinho →
+3. No app, lista → engrenagem → Dados → Sincronizar sozinho →
    **Configurar**. Só o token é pedido: o dono e o repositório estão fixos no
    `app.js` (`SINC_DONO` e `SINC_REPO`). "Guardar e sincronizar" já faz a
    primeira troca e cria o `contagens.json` lá dentro.

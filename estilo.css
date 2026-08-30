@@ -1,4 +1,4 @@
-/* Rezar por — noite de vigília: fundo índigo, letra de missal, lâmpada âmbar */
+/* Intenções — noite de vigília: fundo índigo, letra de missal, lâmpada âmbar */
 
 :root{
   --noite:        #14142b;
@@ -188,6 +188,7 @@ button{ cursor: pointer; background: none; border: none; }
   transition: color .15s, background .15s;
 }
 .icone:hover{ color: var(--pergaminho); background: rgba(255,255,255,.05); }
+.icone.alerta{ color: var(--rubrica); }
 .icone svg{ width:21px; height:21px; fill:none; stroke: currentColor; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; }
 
 /* ── palco: oração, nome, contagem ── */
@@ -235,6 +236,13 @@ button{ cursor: pointer; background: none; border: none; }
 .vazio .marca-agua{ font-family: var(--sans); max-width: 30ch; line-height:1.55; }
 .vazio .botao{ margin-top: 10px; }
 
+/* dois segundos de escuro entre uma intenção e a outra. A transição fica só
+   na ida: na volta quem cuida da entrada é a animação troca, e as duas
+   disputando a mesma opacidade dariam solavanco. */
+.palco.apagando{
+  opacity: 0; transform: translateY(-8px);
+  transition: opacity .5s ease, transform .5s ease;
+}
 .palco.trocando{ animation: troca .42s ease-out; }
 @keyframes troca{
   0%  { opacity:0; transform: translateY(10px) }
@@ -254,6 +262,7 @@ button{ cursor: pointer; background: none; border: none; }
   transition: transform .12s ease, box-shadow .12s ease;
 }
 .botao:active{ transform: scale(.975); box-shadow: 0 4px 18px -10px rgba(226,164,76,.7); }
+.botao:disabled{ opacity: .38; box-shadow: none; cursor: default; transform: none; }
 .botao.secundario{
   background: none;
   border: 1px solid rgba(241,234,220,.22);
@@ -282,6 +291,37 @@ button{ cursor: pointer; background: none; border: none; }
 .rodape-folha .botao{ flex: 1; width: auto; padding: 15px 20px; font-size: 15px; }
 .rodape-folha .botao.secundario{ flex: 0 0 auto; min-width: 116px; padding: 14px 20px; }
 .rodape-folha .botao.largo{ flex: 1; }
+
+/* ── busca ── */
+.busca{
+  display: flex; align-items: center; gap: 10px;
+  margin: 6px 0 16px;
+  padding: 0 14px;
+  border: 1px solid rgba(241,234,220,.16);
+  border-radius: 999px;
+  transition: border-color .15s;
+}
+.busca:focus-within{ border-color: rgba(226,164,76,.55); }
+.busca .lupa{
+  width: 17px; height: 17px; flex: none;
+  fill: none; stroke: var(--bruma); stroke-width: 1.8;
+  stroke-linecap: round; stroke-linejoin: round;
+}
+.busca input{
+  flex: 1; min-width: 0;
+  background: none; border: none; border-radius: 0;
+  padding: 12px 0;
+  font-size: 16px;   /* menos que isso e o celular dá zoom ao focar */
+}
+.busca input:focus{ outline: none; }
+.busca input::placeholder{ color: rgba(142,138,168,.7); }
+.limpar{
+  width: 30px; height: 30px; flex: none;
+  display: grid; place-items: center;
+  border-radius: 50%; color: var(--bruma);
+}
+.limpar:hover{ color: var(--pergaminho); }
+.limpar svg{ width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
 
 /* ── ordenação da lista ── */
 .ordenacao{

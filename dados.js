@@ -1,4 +1,4 @@
-/* Rezar por — dados das intenções.
+/* Intenções — dados das intenções.
    Este arquivo é a cópia que fica no GitHub. O app trabalha com uma cópia
    local no aparelho; quando você quiser guardar as contagens no repositório,
    use "Copiar dados.js" ou "Baixar dados.js" na tela de intenções e substitua
