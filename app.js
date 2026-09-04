@@ -42,6 +42,12 @@
       rotulo: "chance",
       compara: (a, b) => b.chance - a.chance ||
                          a.it.pessoa.localeCompare(b.it.pessoa, "pt-BR")
+    },
+    recentes: {
+      rotulo: "recentes",
+      // sem data conhecida (0) desce para o fim: são as mais antigas de todas
+      compara: (a, b) => (b.it.criadoEm || 0) - (a.it.criadoEm || 0) ||
+                         a.it.pessoa.localeCompare(b.it.pessoa, "pt-BR")
     }
   };
 
@@ -68,8 +74,10 @@
   }
 
   function normalizar(it) {
+    const id = it.id || novoId();
     return {
-      id: it.id || novoId(),
+      id: id,
+      criadoEm: Math.max(0, Math.round(Number(it.criadoEm) || 0)) || dataDoId(id),
       pessoa: String(it.pessoa || "").trim().slice(0, LIM_PESSOA),
       oracao: String(it.oracao || "").trim().slice(0, LIM_ORACAO),
       frequencia: Math.min(100, Math.max(1, Math.round(Number(it.frequencia) || 1))),
@@ -137,6 +145,19 @@
 
   function novoId() {
     return Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  }
+
+  /* O id sempre carregou o instante da criação: são os oito primeiros
+     caracteres, Date.now() em base 36. Dá para saber quando nasceu quase toda
+     intenção antiga sem ter guardado nada. Os ids escritos à mão no dados.js
+     original ("a1" a "a4") não têm data — ficam com 0, que a ordenação por
+     recentes joga para o fim, e é onde de fato pertencem.                 */
+  function dataDoId(id) {
+    const m = /^([0-9a-z]{8})[0-9a-z]{4}$/.exec(String(id || ""));
+    if (!m) return 0;
+    const ms = parseInt(m[1], 36);
+    if (!isFinite(ms) || ms < Date.UTC(2020, 0, 1) || ms > Date.now() + 86400000) return 0;
+    return ms;
   }
 
   /* ─────────────────────────── Sorteio ─────────────────────────── */
@@ -262,6 +283,15 @@
     });
   }
 
+  /* 18/08, ou 18/08/2025 quando for de outro ano */
+  function dataCurta(ms) {
+    const d = new Date(ms);
+    const dia = String(d.getDate()).padStart(2, "0");
+    const mes = String(d.getMonth() + 1).padStart(2, "0");
+    const ano = d.getFullYear();
+    return dia + "/" + mes + (ano === new Date().getFullYear() ? "" : "/" + ano);
+  }
+
   function pintarBusca() {
     $("#campo-busca").value = busca;
     $("#btn-limpar-busca").hidden = !busca;
@@ -323,8 +353,9 @@
         if (razao > 1.05) barra.classList.add("excedente");
         bt.querySelector(".c1").textContent =
           it.contagem + " rezadas · devidas " + devido.toFixed(1);
-        bt.querySelector(".c2").textContent =
-          "chance " + (linha.chance * 100).toFixed(1).replace(".", ",") + "%";
+        bt.querySelector(".c2").textContent = estado.ordem === "recentes"
+          ? (it.criadoEm ? "criada em " + dataCurta(it.criadoEm) : "sem data")
+          : "chance " + (linha.chance * 100).toFixed(1).replace(".", ",") + "%";
         bt.addEventListener("click", () => abrirForm(it.id));
 
         li.appendChild(bt);
@@ -598,8 +629,9 @@
       it.pessoa = pessoa; it.oracao = oracao; it.frequencia = frequencia;
       it.editadoEm = Date.now();
     } else {
+      const agora = Date.now();
       estado.itens.push({ id: novoId(), pessoa, oracao, frequencia, contagem: 0,
-                          base: 0, editadoEm: Date.now() });
+                          base: 0, criadoEm: agora, editadoEm: agora });
     }
 
     // a caixa manda no texto da oração agora nomeada no campo
@@ -646,7 +678,8 @@
              ", pessoa: " + JSON.stringify(it.pessoa) +
              ", oracao: " + JSON.stringify(it.oracao) +
              ", frequencia: " + it.frequencia +
-             ", contagem: " + it.contagem + " }";
+             ", contagem: " + it.contagem +
+             ", criadoEm: " + (it.criadoEm || 0) + " }";
     }).join(",\n");
 
     const textos = Object.keys(estado.textos)
@@ -905,7 +938,8 @@
     const itens = {};
     estado.itens.forEach(function (i) {
       itens[i.id] = { pessoa: i.pessoa, oracao: i.oracao, frequencia: i.frequencia,
-                      contagem: i.contagem, editadoEm: i.editadoEm || 0 };
+                      contagem: i.contagem, criadoEm: i.criadoEm || 0,
+                      editadoEm: i.editadoEm || 0 };
     });
     const textos = {};
     // a data viaja mesmo para o texto apagado: é ela que apaga do outro lado
@@ -952,8 +986,11 @@
       if (L && R) {
         const delta = forcar ? 0 : (L.contagem - L.base);
         const recente = (L.editadoEm || 0) >= (R.editadoEm || 0) ? L : R;
+        // nascer é uma vez só: entre as duas datas fica a mais antiga
+        const nasceu = Math.min(L.criadoEm || Infinity, R.criadoEm || Infinity);
         itens.push({
           id: id,
+          criadoEm: isFinite(nasceu) ? nasceu : 0,
           pessoa: recente.pessoa, oracao: recente.oracao, frequencia: recente.frequencia,
           contagem: Math.max(0, forcar ? L.contagem : R.contagem + delta),
           base: R.contagem,                     // é o que está guardado lá

@@ -129,8 +129,21 @@ como sempre — e, na sincronia seguinte, é empurrado por cima da base
 compartilhada, chegando aos dois celulares. É a saída para impor um estado a
 tudo de uma vez.
 
-A lista de intenções se ordena por frequência (o padrão), por ordem alfabética
-ou pela chance atual no sorteio. A escolha fica guardada no aparelho.
+A lista de intenções se ordena por frequência (o padrão), por ordem alfabética,
+pela chance atual no sorteio ou pelas mais recentes. A escolha fica guardada no
+aparelho; na ordem por recentes, o rodapé de cada linha troca a chance pela
+data de criação.
+
+### Quando cada intenção nasceu
+
+`criadoEm` guarda o instante da criação, e viaja na sincronia — entre duas
+datas para a mesma intenção fica sempre a mais antiga, porque nascer é uma vez
+só. As intenções anteriores a esse campo não precisaram de adivinhação: o `id`
+sempre foi `Date.now().toString(36)` mais quatro caracteres ao acaso, então os
+oito primeiros caracteres devolvem o instante exato. Das 55 que existiam, 51
+foram recuperadas assim. As outras quatro são `a1` a `a4`, ids escritos à mão
+no `dados.js` original: ficam com 0, aparecem como "sem data" e a ordenação por
+recentes as põe no fim — que é onde pertencem, por serem as primeiras de todas.
 
 No formulário de uma pessoa nova, "Salvar e criar outra" guarda e já abre a
 próxima, herdando a oração e a frequência da anterior — só o nome fica em
