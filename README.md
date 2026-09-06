@@ -118,7 +118,7 @@ Com uma sutileza que custou uma reza perdida: o base avança para o que foi
 **realmente enviado**, não para a contagem do momento em que a resposta chega.
 A gravação leva segundos; um "Rezei" apertado nesse intervalo não entrou no que
 foi enviado, e dar o base por adiantado o marcaria como guardado. Na sincronia
-seguinte a conta faria  e a reza sumiria da tela.
+seguinte a conta faria `contagem de lá + 0` e a reza sumiria da tela.
 
 O resto se resolve por data: nome, oração e frequência ficam com a edição mais
 recente; o texto da oração também. Intenção apagada deixa uma lápide, com a
