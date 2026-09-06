@@ -1043,15 +1043,23 @@
 
     const antes = retrato();
     try {
-      let gravou = false;
+      let gravou = false, enviado = null;
       for (let tentativa = 0; tentativa < 3 && !gravou; tentativa++) {
         const lido = await lerRemoto();
         aplicarMescla(mesclar(lido.dados));
-        gravou = await escreverRemoto(paraRemoto(), lido.sha);
+        enviado = paraRemoto();
+        gravou = await escreverRemoto(enviado, lido.sha);
       }
       if (gravou) {
-        // o que está lá passa a ser o que está aqui: o delta zera
-        estado.itens.forEach(function (i) { i.base = i.contagem; });
+        /* base é o que foi REALMENTE gravado, não o que a tela mostra agora.
+           A gravação leva segundos, e um "Rezei" apertado nesse intervalo não
+           entrou no que foi enviado: se o base andasse até a contagem atual,
+           essa reza seria dada por guardada e a sincronia seguinte a apagaria.
+           Assim ela continua pendente e vai na próxima. */
+        estado.itens.forEach(function (i) {
+          const guardado = enviado.itens[i.id];
+          i.base = guardado ? guardado.contagem : 0;
+        });
         estado.forcarEnvio = false;
         salvar();
         sinc.em = Date.now();

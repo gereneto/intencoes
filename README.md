@@ -114,6 +114,12 @@ A regra que sustenta isso: **base é sempre o que este aparelho acredita estar
 guardado lá**, e só avança depois de a gravação dar certo. Se a rede cair no
 meio, o delta continua de pé e vai na tentativa seguinte.
 
+Com uma sutileza que custou uma reza perdida: o base avança para o que foi
+**realmente enviado**, não para a contagem do momento em que a resposta chega.
+A gravação leva segundos; um "Rezei" apertado nesse intervalo não entrou no que
+foi enviado, e dar o base por adiantado o marcaria como guardado. Na sincronia
+seguinte a conta faria  e a reza sumiria da tela.
+
 O resto se resolve por data: nome, oração e frequência ficam com a edição mais
 recente; o texto da oração também. Intenção apagada deixa uma lápide, com a
 data, que viaja junto — sem ela, o outro celular devolveria a intenção na
