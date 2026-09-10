@@ -207,6 +207,21 @@
   </div>
 </section>
 
+<!-- ───────────────── Texto da oração, sem sair da tela ───────────────── -->
+<div class="popup" id="popup-oracao" hidden role="dialog" aria-modal="true" aria-labelledby="popup-nome">
+  <div class="popup-fundo" id="popup-fundo"></div>
+  <div class="popup-cartao" tabindex="-1">
+    <header class="popup-topo">
+      <span class="rubrica" id="popup-nome"></span>
+      <button type="button" class="icone" id="btn-fechar-popup" aria-label="Fechar">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+    </header>
+    <p class="popup-texto" id="popup-texto"></p>
+    <button type="button" class="botao secundario largo" id="btn-popup-escrever"></button>
+  </div>
+</div>
+
 <div class="aviso" id="aviso" role="status" aria-live="polite"></div>
 
 <script src="dados.js"></script>

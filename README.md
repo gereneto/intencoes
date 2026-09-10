@@ -9,7 +9,8 @@ escrito o texto de cada oração, e **Dados**, com a sincronia e a exportação
 (engrenagem no alto da lista). A lista tem busca por pessoa ou oração: primeiro
 vêm as que começam pelo que foi digitado, depois as que só o contêm, sem
 distinguir maiúscula nem acento. Tocar no nome da oração no sorteio abre o
-texto dela. Toda tela secundária tem o voltar no alto, à esquerda. O botão de
+texto dela num popup, sobre a própria tela, sem perder a intenção de vista; de
+lá se vai à tela Orações para escrever ou corrigir. Toda tela secundária tem o voltar no alto, à esquerda. O botão de
 voltar do aparelho fecha a tela aberta e, na tela principal, não faz nada —
 nunca sai do app.
 
@@ -60,8 +61,7 @@ não nascerem duas orações iguais com textos diferentes.
 
 Renomear a oração de uma intenção não leva o texto junto: o nome antigo
 continua com o texto dele na tela Orações, e o nome novo começa vazio. É o que
-a caixa mostra na hora de salvar. Renomear a oração de uma intenção leva o
-texto junto, se o nome antigo tiver ficado sem uso.
+a caixa mostra na hora de salvar.
 
 O nome da pessoa aceita 200 caracteres; o da oração, 500. O texto da oração não
 tem limite.

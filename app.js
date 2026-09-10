@@ -211,6 +211,7 @@
   const telaOracoes = $("#tela-oracoes");
   const telaDados = $("#tela-dados");
   const telaForm = $("#tela-form");
+  const popup = $("#popup-oracao");
   const palco = $("#palco");
 
   function pintarPrincipal() {
@@ -479,10 +480,26 @@
     telaOracoes.hidden = false;
   }
 
+  /* O texto da oração aparece por cima da tela principal: no meio de uma
+     sequência de orações, trocar de tela para ler duas linhas era demais.  */
   function verTextoDaAtual() {
     const it = atual();
     if (!it || !it.oracao) { abrirOracoes(null); return; }
-    abrirOracoes(it.oracao);
+
+    const nome = nomeCanonico(it.oracao) || it.oracao;
+    const texto = estado.textos[nome] || "";
+
+    $("#popup-nome").textContent = nome;
+    $("#popup-texto").textContent = texto || "Esta oração ainda não tem texto escrito.";
+    $("#popup-texto").classList.toggle("sem-texto", !texto);
+    $("#btn-popup-escrever").textContent = texto ? "Editar na tela Orações" : "Escrever o texto";
+    popup.hidden = false;
+    $(".popup-cartao").scrollTop = 0;
+    $(".popup-cartao").focus();
+  }
+
+  function fecharPopup() {
+    popup.hidden = true;
   }
 
   /* ─────────────────────────── Formulário ─────────────────────────── */
@@ -760,6 +777,7 @@
   }
 
   function fecharTopo() {
+    if (!popup.hidden) { fecharPopup(); return true; }
     if (!telaForm.hidden) { fecharForm(); return true; }
     if (!telaDados.hidden) { telaDados.hidden = true; return true; }
     if (!telaOracoes.hidden) { telaOracoes.hidden = true; return true; }
@@ -1191,6 +1209,13 @@
   $("#btn-voltar-dados").addEventListener("click", function () { telaDados.hidden = true; });
   $("#btn-oracoes").addEventListener("click", () => abrirOracoes(null));
   $("#oracao-atual").addEventListener("click", verTextoDaAtual);
+  $("#btn-fechar-popup").addEventListener("click", fecharPopup);
+  $("#popup-fundo").addEventListener("click", fecharPopup);
+  $("#btn-popup-escrever").addEventListener("click", function () {
+    const nome = $("#popup-nome").textContent;
+    fecharPopup();
+    abrirOracoes(nome);
+  });
   $("#btn-voltar-oracoes").addEventListener("click", function () { telaOracoes.hidden = true; });
   $("#btn-cancelar").addEventListener("click", fecharForm);
   $("#btn-salvar").addEventListener("click", function () { salvarForm(false); });
