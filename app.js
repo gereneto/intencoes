@@ -1210,7 +1210,17 @@
   $("#btn-oracoes").addEventListener("click", () => abrirOracoes(null));
   $("#oracao-atual").addEventListener("click", verTextoDaAtual);
   $("#btn-fechar-popup").addEventListener("click", fecharPopup);
-  $("#popup-fundo").addEventListener("click", fecharPopup);
+
+  /* Um toque em qualquer lugar fecha — no fundo escuro ou no próprio cartão.
+     Duas exceções: o botão que leva às Orações, que tem o que fazer, e o caso
+     de haver texto selecionado, para não fechar na cara de quem está copiando
+     a oração. Rolar não fecha: arrastar não gera clique.                   */
+  popup.addEventListener("click", function (e) {
+    if (e.target.closest("#btn-popup-escrever")) return;
+    const sel = window.getSelection && window.getSelection();
+    if (sel && String(sel).trim()) return;
+    fecharPopup();
+  });
   $("#btn-popup-escrever").addEventListener("click", function () {
     const nome = $("#popup-nome").textContent;
     fecharPopup();

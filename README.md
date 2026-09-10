@@ -9,8 +9,9 @@ escrito o texto de cada oração, e **Dados**, com a sincronia e a exportação
 (engrenagem no alto da lista). A lista tem busca por pessoa ou oração: primeiro
 vêm as que começam pelo que foi digitado, depois as que só o contêm, sem
 distinguir maiúscula nem acento. Tocar no nome da oração no sorteio abre o
-texto dela num popup, sobre a própria tela, sem perder a intenção de vista; de
-lá se vai à tela Orações para escrever ou corrigir. Toda tela secundária tem o voltar no alto, à esquerda. O botão de
+texto dela num popup, sobre a própria tela, sem perder a intenção de vista. Um
+toque em qualquer lugar fecha; de lá se vai à tela Orações para escrever ou
+corrigir. Toda tela secundária tem o voltar no alto, à esquerda. O botão de
 voltar do aparelho fecha a tela aberta e, na tela principal, não faz nada —
 nunca sai do app.
 
