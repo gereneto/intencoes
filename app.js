@@ -825,8 +825,8 @@
      (renovada sozinha), nunca a senha. Edição: a mais recente vence. Intenção
      apagada fica apagada. As regras moram no banco (ferramentas/banco.sql). */
 
-  const SUPA_URL = "";        // https://<projeto>.supabase.co
-  const SUPA_CHAVE = "";      // chave pública do projeto (anon / publishable)
+  const SUPA_URL = "https://ftubtusmlgurtvwuuqul.supabase.co";
+  const SUPA_CHAVE = "sb_publishable_EgulwWFrA8MeJurPUXr3cg_PjffTmqz";   // pública por natureza
   const SUPA_EMAIL = "intencoes@taioe.com.br";
   const CHAVE_SESSAO = "intencoes.sessao.v1";
   const CHAVE_APARELHO = "intencoes.aparelho.v1";
