@@ -492,7 +492,7 @@
     $("#popup-nome").textContent = nome;
     $("#popup-texto").textContent = texto || "Esta oração ainda não tem texto escrito.";
     $("#popup-texto").classList.toggle("sem-texto", !texto);
-    $("#btn-popup-escrever").textContent = texto ? "Editar na tela Orações" : "Escrever o texto";
+    $("#btn-popup-escrever-rotulo").textContent = texto ? "Editar na tela Orações" : "Escrever o texto";
     popup.hidden = false;
     $(".popup-cartao").scrollTop = 0;
     $(".popup-cartao").focus();
