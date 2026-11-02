@@ -4,7 +4,12 @@
 (function () {
   "use strict";
 
-  const CHAVE = "rezarPor.estado.v1";
+  /* O estado mora no aparelho. A chave da versão do GitHub (v1) nunca mais se
+     regrava: fica intacta como registro do que o celular tinha antes do banco,
+     e vai inteira na cópia enviada ao banco (ver montarCopia).            */
+  const CHAVE = "intencoes.estado.v2";
+  const CHAVE_LEGADO = "rezarPor.estado.v1";
+  const CHAVE_LEGADO_SINC = "rezarPor.sinc.v1";
 
   /* Parâmetros do sorteio -------------------------------------------------
      LIMITE  quanto o desvio pode empurrar o peso (evita que quem está muito
@@ -58,16 +63,20 @@
 
   /* ─────────────────────────── Estado ─────────────────────────── */
 
-  function base() {
-    const d = window.DADOS_ORACOES || {};
+  function lerJSON(chave) {
+    try { return JSON.parse(localStorage.getItem(chave) || "null"); } catch (e) { return null; }
+  }
+
+  function semSujos() { return { itens: {}, textos: {}, apagadas: {} }; }
+
+  function vazio() {
     return {
-      versao: d.versao || 0,
-      atualizadoEm: d.atualizadoEm || "",
-      itens: (d.itens || []).map(normalizar),
-      textos: normalizarTextos(d.textos),
-      textosEm: {},
-      removidos: {},
-      forcarEnvio: false,
+      itens: [], textos: {}, textosEm: {},
+      fila: [],            // rezas ainda não enviadas ao banco
+      sujos: semSujos(),   // edições ainda não enviadas
+      ligado: false,       // já conversou com o banco (ou fez a primeira carga)
+      copiaInicial: false, // a cópia da primeira entrada já está no banco
+      sincEm: 0,
       ordem: "frequencia",
       atual: null
     };
@@ -75,16 +84,17 @@
 
   function normalizar(it) {
     const id = it.id || novoId();
+    const contagem = Math.max(0, Math.round(Number(it.contagem) || 0));
     return {
       id: id,
       criadoEm: Math.max(0, Math.round(Number(it.criadoEm) || 0)) || dataDoId(id),
       pessoa: String(it.pessoa || "").trim().slice(0, LIM_PESSOA),
       oracao: String(it.oracao || "").trim().slice(0, LIM_ORACAO),
       frequencia: Math.min(100, Math.max(1, Math.round(Number(it.frequencia) || 1))),
-      contagem: Math.max(0, Math.round(Number(it.contagem) || 0)),
-      /* base: quanto esta intenção tinha na última sincronia. O que foi rezado
-         desde então é contagem − base, e é isso que se soma ao total de lá. */
-      base: Math.max(0, Math.round(Number(it.base != null ? it.base : it.contagem) || 0)),
+      /* contagem: o que a tela mostra = banco + rezas desta intenção na fila.
+         banco: o que o banco tinha na última leitura.                       */
+      contagem: contagem,
+      banco: Math.round(Number(it.banco != null ? it.banco : contagem) || 0),
       editadoEm: Math.max(0, Math.round(Number(it.editadoEm) || 0))
     };
   }
@@ -114,28 +124,47 @@
     return saida;
   }
 
+  function normalizarFila(f) {
+    return (Array.isArray(f) ? f : []).filter(r => r && r.id && r.intencao_id).map(r => ({
+      id: String(r.id), intencao_id: String(r.intencao_id),
+      quantidade: Math.round(Number(r.quantidade) || 0),
+      em: String(r.em || new Date().toISOString()),
+      origem: String(r.origem || "rezei")
+    })).filter(r => r.quantidade !== 0);
+  }
+
   function carregar() {
-    const doArquivo = base();
-    let local = null;
-    try { local = JSON.parse(localStorage.getItem(CHAVE) || "null"); } catch (e) { local = null; }
-    if (!local || !Array.isArray(local.itens)) return doArquivo;
-    // Arquivo do GitHub mais novo vence: é assim que outro aparelho se atualiza.
-    if ((doArquivo.versao || 0) > (local.versao || 0)) {
-      // adoção em bloco: este arquivo passa a ser a verdade, também para quem
-      // sincroniza — daí a marca para empurrá-lo por cima da base compartilhada.
-      const agora = Date.now();
-      doArquivo.itens.forEach(function (i) { i.editadoEm = agora; });
-      Object.keys(doArquivo.textos).forEach(function (n) { doArquivo.textosEm[n] = agora; });
-      doArquivo.forcarEnvio = true;
-      return doArquivo;
+    const e = vazio();
+    const v2 = lerJSON(CHAVE);
+    if (v2 && Array.isArray(v2.itens)) {
+      e.itens = v2.itens.map(normalizar);
+      e.textos = normalizarTextos(v2.textos);
+      e.textosEm = normalizarDatas(v2.textosEm);
+      e.fila = normalizarFila(v2.fila);
+      const s = v2.sujos || {};
+      e.sujos = { itens: Object.assign({}, s.itens), textos: Object.assign({}, s.textos),
+                  apagadas: normalizarDatas(s.apagadas) };
+      e.ligado = !!v2.ligado;
+      e.copiaInicial = !!v2.copiaInicial;
+      e.sincEm = Number(v2.sincEm) || 0;
+      e.ordem = ORDENS[v2.ordem] ? v2.ordem : "frequencia";
+      e.atual = v2.atual || null;
+      return e;
     }
-    local.itens = local.itens.map(normalizar);
-    local.textos = normalizarTextos(local.textos);
-    local.textosEm = normalizarDatas(local.textosEm);
-    local.removidos = normalizarDatas(local.removidos);
-    local.forcarEnvio = !!local.forcarEnvio;
-    local.ordem = ORDENS[local.ordem] ? local.ordem : "frequencia";
-    return local;
+    /* Primeira abertura desta versão: parte do que a versão do GitHub deixou.
+       A contagem vem como está (com o que ainda não tinha chegado ao GitHub);
+       quem decide o que vale é a primeira sincronia com o banco.          */
+    const v1 = lerJSON(CHAVE_LEGADO);
+    const d = (v1 && Array.isArray(v1.itens)) ? v1 : (window.DADOS_ORACOES || {});
+    e.itens = (d.itens || []).map(i => normalizar({
+      id: i.id, criadoEm: i.criadoEm, pessoa: i.pessoa, oracao: i.oracao,
+      frequencia: i.frequencia, contagem: i.contagem, editadoEm: i.editadoEm
+    }));
+    e.textos = normalizarTextos(d.textos);
+    e.textosEm = normalizarDatas(d.textosEm);
+    e.ordem = ORDENS[d.ordem] ? d.ordem : "frequencia";
+    e.atual = d.atual || null;
+    return e;
   }
 
   function salvar() {
@@ -239,9 +268,10 @@
     const it = atual();
     if (!it) return;
     it.contagem += 1;
+    enfileirar(it.id, 1, "rezei");
     estado.atual = sortear();
     salvar();
-    agendarSinc();
+    agendarSinc(8000);
     if (navigator.vibrate) navigator.vibrate(12);
 
     palco.classList.remove("trocando");
@@ -378,7 +408,8 @@
   function guardarTexto(nome, texto) {
     if (texto.trim()) estado.textos[nome] = texto;
     else delete estado.textos[nome];
-    estado.textosEm[nome] = Date.now();   // a data viaja: é ela que decide na mescla
+    estado.textosEm[nome] = Date.now();   // a data viaja: a edição mais recente vence
+    estado.sujos.textos[nome] = 1;
     salvar();
     agendarSinc(5000);
   }
@@ -594,6 +625,8 @@
     if (resp === null) return;
     const n = Math.round(Number(resp.replace(",", ".")));
     if (!isFinite(n) || n < 0) { avisar("Informe um número igual ou maior que zero"); return; }
+    if (n === it.contagem) return;
+    enfileirar(it.id, n - it.contagem, "ajuste");
     it.contagem = n;
     salvar();
     agendarSinc(3000);
@@ -645,10 +678,13 @@
       const it = estado.itens.find(i => i.id === editando);
       it.pessoa = pessoa; it.oracao = oracao; it.frequencia = frequencia;
       it.editadoEm = Date.now();
+      estado.sujos.itens[it.id] = 1;
     } else {
       const agora = Date.now();
-      estado.itens.push({ id: novoId(), pessoa, oracao, frequencia, contagem: 0,
-                          base: 0, criadoEm: agora, editadoEm: agora });
+      const id = novoId();
+      estado.itens.push({ id, pessoa, oracao, frequencia, contagem: 0,
+                          banco: 0, criadoEm: agora, editadoEm: agora });
+      estado.sujos.itens[id] = 1;
     }
 
     // a caixa manda no texto da oração agora nomeada no campo
@@ -675,7 +711,8 @@
     const it = estado.itens.find(i => i.id === editando);
     if (!it) return;
     if (!confirm("Excluir “" + it.pessoa + "” da lista? A contagem se perde.")) return;
-    estado.removidos[editando] = Date.now();   // lápide: impede que volte do outro aparelho
+    estado.sujos.apagadas[editando] = Date.now();   // no banco fica marcada como apagada
+    delete estado.sujos.itens[editando];
     estado.itens = estado.itens.filter(i => i.id !== editando);
     if (estado.atual === editando) estado.atual = sortear();
     salvar();
@@ -686,73 +723,41 @@
     avisar("Intenção excluída");
   }
 
-  /* ─────────────────────────── Exportar ─────────────────────────── */
+  /* ─────────────────────── Cópia deste celular ───────────────────────
+     Tudo o que o aparelho guarda, num arquivo só: o estado atual e, intacto,
+     o que a versão do GitHub deixou (com a "base" de cada intenção, que diz
+     o que nunca chegou ao GitHub). É daqui que se recupera o que só um
+     celular tinha. O token antigo do GitHub nunca entra.                 */
 
-  function gerarArquivo() {
-    const hoje = new Date().toISOString().slice(0, 10);
-    const linhas = estado.itens.map(function (it) {
-      return "    { id: " + JSON.stringify(it.id) +
-             ", pessoa: " + JSON.stringify(it.pessoa) +
-             ", oracao: " + JSON.stringify(it.oracao) +
-             ", frequencia: " + it.frequencia +
-             ", contagem: " + it.contagem +
-             ", criadoEm: " + (it.criadoEm || 0) + " }";
-    }).join(",\n");
-
-    const textos = Object.keys(estado.textos)
-      .sort((a, b) => a.localeCompare(b, "pt-BR"))
-      .map(n => "    " + JSON.stringify(n) + ": " + JSON.stringify(estado.textos[n]))
-      .join(",\n");
-
-    return "/* Intenções — dados das intenções. Gerado pelo app em " + hoje + ". */\n\n" +
-           "window.DADOS_ORACOES = {\n" +
-           "  versao: " + ((estado.versao || 0) + 1) + ",\n" +
-           '  atualizadoEm: "' + hoje + '",\n' +
-           "  itens: [\n" + linhas + "\n  ],\n" +
-           "  textos: {\n" + textos + "\n  }\n};\n";
+  function montarCopia(motivo) {
+    const sincAntiga = lerJSON(CHAVE_LEGADO_SINC);
+    if (sincAntiga) delete sincAntiga.token;
+    return {
+      app: "intencoes",
+      formato: 1,
+      aparelho: aparelho,
+      motivo: motivo,
+      em: new Date().toISOString(),
+      navegador: navigator.userAgent,
+      legado: lerJSON(CHAVE_LEGADO),
+      legadoSinc: sincAntiga,
+      estado: estado
+    };
   }
 
-  function marcarExportado() {
-    estado.versao = (estado.versao || 0) + 1;
-    estado.atualizadoEm = new Date().toISOString().slice(0, 10);
-    salvar();
-  }
-
-  function copiarArquivo() {
-    const txt = gerarArquivo();
-    const ok = () => { marcarExportado(); avisar("Copiado — cole no dados.js do repositório"); };
-    if (navigator.clipboard && window.isSecureContext) {
-      navigator.clipboard.writeText(txt).then(ok, () => avisar("O aparelho não deixou copiar"));
-    } else {
-      const a = document.createElement("textarea");
-      a.value = txt; a.style.position = "fixed"; a.style.opacity = "0";
-      document.body.appendChild(a); a.select();
-      try { document.execCommand("copy"); ok(); }
-      catch (e) { avisar("O aparelho não deixou copiar"); }
-      document.body.removeChild(a);
-    }
-  }
-
-  function baixarArquivo() {
-    const blob = new Blob([gerarArquivo()], { type: "text/javascript" });
+  function baixarCopia() {
+    const copia = montarCopia("arquivo baixado");
+    const blob = new Blob([JSON.stringify(copia, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
+    const nome = (aparelho || "celular").toLowerCase()
+      .normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "") || "celular";
     const a = document.createElement("a");
-    a.href = url; a.download = "dados.js";
+    a.href = url;
+    a.download = "intencoes-copia-" + nome + "-" + copia.em.slice(0, 10) + ".json";
     document.body.appendChild(a); a.click(); document.body.removeChild(a);
     setTimeout(() => URL.revokeObjectURL(url), 2000);
-    marcarExportado();
-    avisar("dados.js gerado");
-  }
-
-  function zerarContagens() {
-    if (!confirm("Zerar a contagem de todas as intenções?")) return;
-    estado.itens.forEach(i => { i.contagem = 0; });
-    estado.atual = sortear();
-    salvar();
-    agendarSinc(3000);
-    pintarLista();
-    pintarPrincipal();
-    avisar("Contagens zeradas");
+    avisar("Cópia baixada");
   }
 
   /* ─────────────────────────── Aviso ─────────────────────────── */
@@ -809,251 +814,299 @@
     $("#campo-frequencia").addEventListener(ev, soltarTeclado, { passive: true });
   });
 
-  /* ──────────────────────── Sincronia automática ────────────────────────
-     A base compartilhada é um arquivo JSON num repositório privado só de
-     dados, gravado pela API do GitHub. Cada aparelho guarda, por intenção,
-     quanto ela tinha na última sincronia (base). O que rezou desde então é
-     contagem − base, e é esse delta que se soma ao total de lá — assim os
-     dois celulares somam em vez de um sobrescrever o outro.
+  /* ──────────────────────── Sincronia (Supabase) ────────────────────────
+     O banco guarda cada "Rezei" como uma linha; a contagem de uma intenção é
+     o que ela tinha quando o banco nasceu mais a soma das linhas dela. O
+     celular junta numa fila o que ainda não mandou e, a cada sincronia, manda
+     a fila e as edições e depois relê tudo. Nada se soma por diferença, então
+     os dois aparelhos não têm como descasar.
 
-     Regra que sustenta tudo: "base" é sempre o que este aparelho acredita
-     estar guardado lá. Só avança depois de a gravação dar certo; se a rede
-     falhar, o delta continua de pé e vai na próxima.                    */
+     A senha se digita uma vez em cada celular; o que fica guardado é a sessão
+     (renovada sozinha), nunca a senha. Edição: a mais recente vence. Intenção
+     apagada fica apagada. As regras moram no banco (ferramentas/banco.sql). */
 
-  const CHAVE_SINC = "rezarPor.sinc.v1";
+  const SUPA_URL = "";        // https://<projeto>.supabase.co
+  const SUPA_CHAVE = "";      // chave pública do projeto (anon / publishable)
+  const SUPA_EMAIL = "intencoes@taioe.com.br";
+  const CHAVE_SESSAO = "intencoes.sessao.v1";
+  const CHAVE_APARELHO = "intencoes.aparelho.v1";
 
-  /* Onde fica a base compartilhada. É sempre o mesmo lugar, então não há o que
-     perguntar: do aparelho só se pede o token.                            */
-  const SINC_DONO = "gereneto";
-  const SINC_REPO = "intencoes-dados";
-  const SINC_ARQUIVO = "contagens.json";
-  const SINC_RAMO = "main";
-  const SINC_ALVO = SINC_DONO + "/" + SINC_REPO;
-  const ESQUECER_APAGADAS = 180 * 24 * 60 * 60 * 1000;   // 180 dias
-
-  let sinc = carregarSinc();
+  let sessao = lerJSON(CHAVE_SESSAO);       // { acesso, renovar, expira }
+  let aparelho = "";
+  try { aparelho = localStorage.getItem(CHAVE_APARELHO) || ""; } catch (e) { aparelho = ""; }
+  let sessaoPerdida = false;
   let sincronizando = false;
   let sincPendente = false;
   let sincTimer = null;
   let sincErro = "";
 
-  function carregarSinc() {
-    let s = null;
-    try { s = JSON.parse(localStorage.getItem(CHAVE_SINC) || "null"); } catch (e) { s = null; }
-    s = s || {};
-    return { token: String(s.token || "").trim(), em: Number(s.em) || 0 };
-  }
-
-  function salvarSinc() {
-    try { localStorage.setItem(CHAVE_SINC, JSON.stringify(sinc)); }
-    catch (e) { avisar("Não foi possível guardar a configuração"); }
-  }
-
-  function sincLigada() { return !!sinc.token; }
-
-  /* ── base64 que aguenta acento ── */
-  function paraBase64(txt) {
-    const bytes = new TextEncoder().encode(txt);
-    let bin = "";
-    for (let i = 0; i < bytes.length; i += 0x8000) {
-      bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+  /* o token do GitHub não serve mais: sai do aparelho (a data fica, é registro) */
+  (function () {
+    const velha = lerJSON(CHAVE_LEGADO_SINC);
+    if (velha && velha.token) {
+      try { localStorage.setItem(CHAVE_LEGADO_SINC, JSON.stringify({ em: velha.em || 0, tokenApagado: true })); }
+      catch (e) { /* fica para a próxima */ }
     }
-    return btoa(bin);
+  })();
+
+  function bancoNoCodigo() { return !!(SUPA_URL && SUPA_CHAVE); }
+  function sincLigada() { return bancoNoCodigo() && !!(sessao && sessao.renovar); }
+
+  function gravarSessao(s) {
+    sessao = s;
+    try {
+      if (s) localStorage.setItem(CHAVE_SESSAO, JSON.stringify(s));
+      else localStorage.removeItem(CHAVE_SESSAO);
+    } catch (e) { /* sem onde guardar: vale só enquanto o app estiver aberto */ }
   }
 
-  function deBase64(b64) {
-    const bin = atob(String(b64).replace(/\s+/g, ""));
-    const bytes = new Uint8Array(bin.length);
-    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-    return new TextDecoder().decode(bytes);
+  function uuid() {
+    if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
+    const b = new Uint8Array(16);
+    crypto.getRandomValues(b);
+    b[6] = (b[6] & 0x0f) | 0x40; b[8] = (b[8] & 0x3f) | 0x80;
+    const h = Array.from(b, x => x.toString(16).padStart(2, "0")).join("");
+    return h.slice(0, 8) + "-" + h.slice(8, 12) + "-" + h.slice(12, 16) + "-" +
+           h.slice(16, 20) + "-" + h.slice(20);
   }
 
-  /* ── API do GitHub ── */
-  function urlArquivo() {
-    return "https://api.github.com/repos/" +
-           encodeURIComponent(SINC_DONO) + "/" + encodeURIComponent(SINC_REPO) +
-           "/contents/" + SINC_ARQUIVO.split("/").map(encodeURIComponent).join("/");
+  function enfileirar(id, quantidade, origem) {
+    estado.fila.push({ id: uuid(), intencao_id: id, quantidade: quantidade,
+                       em: new Date().toISOString(), origem: origem });
   }
 
-  function cabecalhos() {
-    return {
-      "Authorization": "Bearer " + sinc.token,
-      "Accept": "application/vnd.github+json",
-      "X-GitHub-Api-Version": "2022-11-28"
-    };
+  function naFila(id) {
+    return estado.fila.reduce((s, r) => s + (r.intencao_id === id ? r.quantidade : 0), 0);
+  }
+
+  function pendentes() {
+    return estado.fila.length + Object.keys(estado.sujos.itens).length +
+           Object.keys(estado.sujos.textos).length + Object.keys(estado.sujos.apagadas).length;
   }
 
   function recado(status) {
-    if (status === 401) return "o token foi recusado";
-    if (status === 403) return "o token não tem permissão de escrita";
-    if (status === 404) return "repositório não encontrado para este token";
-    if (status >= 500) return "o GitHub não respondeu";
+    if (status === 401) return "a senha precisa ser digitada de novo";
+    if (status === 403) return "o banco recusou o acesso";
+    if (status === 404) return "o banco não tem as tabelas do app";
+    if (status >= 500) return "o banco não respondeu";
     return "erro " + status;
   }
 
-  async function lerRemoto() {
-    const url = urlArquivo() + "?ref=" + encodeURIComponent(SINC_RAMO) + "&_=" + Date.now();
-    const r = await fetch(url, { headers: cabecalhos(), cache: "no-store" });
-    if (r.status === 404) return { dados: baseVazia(), sha: null };   // primeira vez
-    if (!r.ok) throw new Error(recado(r.status));
-    const j = await r.json();
-    let dados;
-    try { dados = JSON.parse(deBase64(j.content)); } catch (e) { dados = baseVazia(); }
-    return { dados: normalizarRemoto(dados), sha: j.sha };
+  function erroDeRede(e) {
+    return e && e.name === "TypeError" ? "sem internet" : (e && e.message) || "falhou";
   }
 
-  /* devolve false quando outro aparelho gravou antes: refaz a mescla */
-  async function escreverRemoto(dados, sha) {
-    const corpo = {
-      message: "Contagens — " + new Date().toISOString().slice(0, 16).replace("T", " "),
-      content: paraBase64(JSON.stringify(dados, null, 2)),
-      branch: SINC_RAMO
-    };
-    if (sha) corpo.sha = sha;
-    const r = await fetch(urlArquivo(), {
-      method: "PUT",
-      headers: Object.assign({ "Content-Type": "application/json" }, cabecalhos()),
+  /* ── sessão ── */
+  async function pedirSessao(corpo, tipo) {
+    const r = await fetch(SUPA_URL + "/auth/v1/token?grant_type=" + tipo, {
+      method: "POST",
+      headers: { "apikey": SUPA_CHAVE, "Content-Type": "application/json" },
       body: JSON.stringify(corpo)
     });
-    if (r.status === 409 || r.status === 422) return false;
-    if (!r.ok) throw new Error(recado(r.status));
-    return true;
-  }
-
-  /* ── forma da base compartilhada ── */
-  function baseVazia() { return { atualizadoEm: "", itens: {}, textos: {}, removidos: {} }; }
-
-  function normalizarRemoto(d) {
-    const saida = baseVazia();
-    if (!d || typeof d !== "object") return saida;
-    saida.atualizadoEm = String(d.atualizadoEm || "");
-    if (d.itens && typeof d.itens === "object") {
-      Object.keys(d.itens).forEach(function (id) {
-        const it = normalizar(Object.assign({ id: id }, d.itens[id]));
-        it.base = it.contagem;
-        saida.itens[id] = it;
-      });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok || !j.access_token) {
+      const e = new Error(r.status === 400 ? "senha errada" : recado(r.status));
+      e.status = r.status;
+      throw e;
     }
-    if (d.textos && typeof d.textos === "object") {
-      Object.keys(d.textos).forEach(function (n) {
-        const t = d.textos[n] || {};
-        const nome = String(n).trim().slice(0, LIM_ORACAO);
-        if (nome) saida.textos[nome] = { texto: String(t.texto == null ? "" : t.texto),
-                                         em: Math.max(0, Math.round(Number(t.em) || 0)) };
-      });
+    return { acesso: j.access_token, renovar: j.refresh_token,
+             expira: Date.now() + (Number(j.expires_in) || 3600) * 1000 };
+  }
+
+  let renovando = null;
+  function tokenDeAcesso(forcar) {
+    if (!sessao) return Promise.reject(new Error(recado(401)));
+    if (!forcar && sessao.acesso && Date.now() < sessao.expira - 60000) {
+      return Promise.resolve(sessao.acesso);
     }
-    saida.removidos = normalizarDatas(d.removidos);
-    return saida;
+    if (!renovando) {
+      renovando = pedirSessao({ refresh_token: sessao.renovar }, "refresh_token")
+        .then(function (s) { gravarSessao(s); return s.acesso; })
+        .catch(function (e) {
+          // recusa do banco derruba a sessão; queda de rede, não
+          if (e.status >= 400 && e.status < 500) {
+            gravarSessao(null);
+            sessaoPerdida = true;
+            throw new Error(recado(401));
+          }
+          throw e;
+        })
+        .finally(function () { renovando = null; });
+    }
+    return renovando;
   }
 
-  function ordenado(obj) {
-    const saida = {};
-    Object.keys(obj).sort().forEach(function (k) { saida[k] = obj[k]; });
-    return saida;
-  }
-
-  function paraRemoto() {
-    const itens = {};
-    estado.itens.forEach(function (i) {
-      itens[i.id] = { pessoa: i.pessoa, oracao: i.oracao, frequencia: i.frequencia,
-                      contagem: i.contagem, criadoEm: i.criadoEm || 0,
-                      editadoEm: i.editadoEm || 0 };
-    });
-    const textos = {};
-    // a data viaja mesmo para o texto apagado: é ela que apaga do outro lado
-    Object.keys(estado.textosEm).forEach(function (n) {
-      textos[n] = { texto: estado.textos[n] || "", em: estado.textosEm[n] };
-    });
-    Object.keys(estado.textos).forEach(function (n) {
-      if (!textos[n]) textos[n] = { texto: estado.textos[n], em: 0 };
-    });
-    return {
-      atualizadoEm: new Date().toISOString(),
-      itens: ordenado(itens),
-      textos: ordenado(textos),
-      removidos: ordenado(estado.removidos)
-    };
-  }
-
-  /* ── a mescla ── */
-  function mesclar(remoto) {
-    const forcar = !!estado.forcarEnvio;
-    const corte = Date.now() - ESQUECER_APAGADAS;
-
-    const removidos = {};
-    [remoto.removidos, estado.removidos].forEach(function (fonte) {
-      Object.keys(fonte).forEach(function (id) {
-        if (fonte[id] > corte && (!removidos[id] || fonte[id] > removidos[id])) {
-          removidos[id] = fonte[id];
-        }
+  async function api(caminho, opcoes) {
+    opcoes = opcoes || {};
+    for (let vez = 0; vez < 2; vez++) {
+      const acesso = await tokenDeAcesso(vez > 0);
+      const cab = { "apikey": SUPA_CHAVE, "Authorization": "Bearer " + acesso,
+                    "Content-Type": "application/json" };
+      if (opcoes.prefer) cab["Prefer"] = opcoes.prefer;
+      const r = await fetch(SUPA_URL + "/rest/v1/" + caminho, {
+        method: opcoes.metodo || "GET", headers: cab, cache: "no-store",
+        body: opcoes.corpo ? JSON.stringify(opcoes.corpo) : undefined
       });
+      if (r.status === 401 && vez === 0) continue;     // token vencido: renova e tenta de novo
+      if (!r.ok) throw new Error(recado(r.status));
+      const txt = await r.text();
+      return txt ? JSON.parse(txt) : null;
+    }
+  }
+
+  function gravarLinhas(tabela, linhas, chave, ignorarRepetidas) {
+    if (!linhas.length) return Promise.resolve();
+    return api(tabela + "?on_conflict=" + chave, {
+      metodo: "POST", corpo: linhas,
+      prefer: (ignorarRepetidas ? "resolution=ignore-duplicates" : "resolution=merge-duplicates") +
+              ",return=minimal"
+    });
+  }
+
+  function enviarCopia(motivo) {
+    return api("copias", {
+      metodo: "POST", prefer: "return=minimal",
+      corpo: { aparelho: aparelho, motivo: motivo, conteudo: montarCopia(motivo) }
+    });
+  }
+
+  /* ── primeira conversa deste celular com o banco ──
+     Antes de qualquer coisa, a cópia inteira do aparelho vai para o banco:
+     sem ela confirmada, nada daqui é trocado pelo que está lá. Se o banco
+     estiver vazio, este celular pode ser o ponto de partida.            */
+  async function primeiraVez(porOrdem) {
+    if (!estado.copiaInicial) {
+      await enviarCopia("primeira entrada");
+      estado.copiaInicial = true;
+      salvar();
+    }
+    const algum = await api("intencoes?select=id&limit=1");
+    if ((algum && algum.length) || !estado.itens.length) {
+      estado.ligado = true;
+      salvar();
+      return;
+    }
+    if (!porOrdem) { sincErro = "o banco está vazio; toque em Sincronizar agora"; return; }
+    const n = estado.itens.length;
+    if (!confirm("O banco está vazio. Usar as " + n + " intenções deste celular, com as " +
+                 "contagens, como ponto de partida para os dois aparelhos?")) {
+      sincErro = "o banco está vazio, esperando a primeira carga";
+      return;
+    }
+    await gravarLinhas("intencoes", estado.itens.map(i => ({
+      id: i.id, pessoa: i.pessoa, oracao: i.oracao, frequencia: i.frequencia,
+      contagem_inicial: i.contagem, criado_em: i.criadoEm || 0, editado_em: i.editadoEm || 0
+    })), "id");
+    await gravarLinhas("textos", Object.keys(estado.textos).map(n => ({
+      nome: n, texto: estado.textos[n], editado_em: estado.textosEm[n] || 0
+    })), "nome");
+    // a fila e as edições já estão dentro da carga
+    estado.fila = [];
+    estado.sujos = semSujos();
+    estado.itens.forEach(i => { i.banco = i.contagem; });
+    estado.ligado = true;
+    salvar();
+  }
+
+  /* ── o que este celular tem a mandar ──
+     Cada parte só sai da fila depois de gravada; o que mudou durante o envio
+     continua marcado e vai na próxima.                                  */
+  async function enviarPendencias() {
+    const apagadas = Object.assign({}, estado.sujos.apagadas);
+    await gravarLinhas("intencoes", Object.keys(apagadas).map(id => ({
+      id: id, apagada_em: apagadas[id], editado_em: apagadas[id]
+    })), "id");
+    Object.keys(apagadas).forEach(id => {
+      if (estado.sujos.apagadas[id] === apagadas[id]) delete estado.sujos.apagadas[id];
     });
 
+    const editadas = estado.itens.filter(i => estado.sujos.itens[i.id]).map(i => ({
+      id: i.id, pessoa: i.pessoa, oracao: i.oracao, frequencia: i.frequencia,
+      criado_em: i.criadoEm || 0, editado_em: i.editadoEm || 0
+    }));
+    await gravarLinhas("intencoes", editadas, "id");
+    Object.keys(estado.sujos.itens).forEach(id => {
+      const it = estado.itens.find(i => i.id === id);
+      const foi = editadas.find(e => e.id === id);
+      if (!it || (foi && foi.editado_em === (it.editadoEm || 0))) delete estado.sujos.itens[id];
+    });
+
+    const textos = Object.keys(estado.sujos.textos).map(n => ({
+      nome: n, texto: estado.textos[n] || "", editado_em: estado.textosEm[n] || 0
+    }));
+    await gravarLinhas("textos", textos, "nome");
+    textos.forEach(t => {
+      if ((estado.textosEm[t.nome] || 0) === t.editado_em) delete estado.sujos.textos[t.nome];
+    });
+
+    const lote = estado.fila.slice();
+    await gravarLinhas("rezas", lote.map(r => ({
+      id: r.id, intencao_id: r.intencao_id, quantidade: r.quantidade,
+      em: r.em, aparelho: aparelho, origem: r.origem
+    })), "id", true);
+    const foram = new Set(lote.map(r => r.id));
+    estado.fila = estado.fila.filter(r => !foram.has(r.id));
+    salvar();
+  }
+
+  /* ── o banco manda: relê tudo e refaz a lista ── */
+  async function relerBanco() {
+    const lidos = await Promise.all([
+      api("intencoes?select=id,pessoa,oracao,frequencia,contagem_inicial,criado_em,editado_em,apagada_em&limit=10000"),
+      api("textos?select=nome,texto,editado_em&limit=10000"),
+      api("contagens?select=intencao_id,total&limit=10000")
+    ]);
+    const rItens = lidos[0] || [], rTextos = lidos[1] || [], rTotais = lidos[2] || [];
+
+    const totais = {};
+    rTotais.forEach(c => { totais[c.intencao_id] = Number(c.total) || 0; });
     const locais = {};
-    estado.itens.forEach(function (i) { locais[i.id] = i; });
-
-    const ids = Object.keys(locais);
-    Object.keys(remoto.itens).forEach(function (id) { if (!locais[id]) ids.push(id); });
+    estado.itens.forEach(i => { locais[i.id] = i; });
+    const noBanco = {};
 
     const itens = [];
-    ids.forEach(function (id) {
-      const L = locais[id], R = remoto.itens[id];
-      // apagada em algum aparelho depois da última edição: fica apagada
-      if (removidos[id] && removidos[id] >= Math.max((L && L.editadoEm) || 0, (R && R.editadoEm) || 0)) return;
-
-      if (L && R) {
-        const delta = forcar ? 0 : (L.contagem - L.base);
-        const recente = (L.editadoEm || 0) >= (R.editadoEm || 0) ? L : R;
-        // nascer é uma vez só: entre as duas datas fica a mais antiga
-        const nasceu = Math.min(L.criadoEm || Infinity, R.criadoEm || Infinity);
-        itens.push({
-          id: id,
-          criadoEm: isFinite(nasceu) ? nasceu : 0,
-          pessoa: recente.pessoa, oracao: recente.oracao, frequencia: recente.frequencia,
-          contagem: Math.max(0, forcar ? L.contagem : R.contagem + delta),
-          base: R.contagem,                     // é o que está guardado lá
-          editadoEm: Math.max(L.editadoEm || 0, R.editadoEm || 0)
-        });
-      } else if (L) {
-        itens.push(Object.assign({}, L, { base: 0 }));       // ainda não está lá
-      } else {
-        itens.push(Object.assign({}, R, { base: R.contagem }));
-      }
+    rItens.forEach(function (r) {
+      noBanco[r.id] = 1;
+      if (r.apagada_em != null || estado.sujos.apagadas[r.id]) return;
+      const L = locais[r.id];
+      // editada aqui enquanto a sincronia corria: a versão daqui espera a próxima
+      const it = (L && estado.sujos.itens[r.id]) ? L : normalizar({
+        id: r.id, pessoa: r.pessoa, oracao: r.oracao, frequencia: r.frequencia,
+        criadoEm: r.criado_em, editadoEm: r.editado_em
+      });
+      it.banco = (Number(r.contagem_inicial) || 0) + (totais[r.id] || 0);
+      it.contagem = Math.max(0, it.banco + naFila(r.id));
+      itens.push(it);
+    });
+    // criadas aqui enquanto a sincronia corria
+    estado.itens.forEach(function (i) {
+      if (!noBanco[i.id] && estado.sujos.itens[i.id]) itens.push(i);
     });
 
     const textos = {}, textosEm = {};
-    const nomes = {};
-    Object.keys(estado.textos).forEach(function (n) { nomes[n] = 1; });
-    Object.keys(estado.textosEm).forEach(function (n) { nomes[n] = 1; });
-    Object.keys(remoto.textos).forEach(function (n) { nomes[n] = 1; });
-    Object.keys(nomes).forEach(function (n) {
-      const lEm = estado.textosEm[n] || 0;
-      const rEm = remoto.textos[n] ? remoto.textos[n].em : 0;
-      const daqui = forcar || lEm >= rEm;
-      const txt = daqui ? (estado.textos[n] || "")
-                        : (remoto.textos[n] ? remoto.textos[n].texto : "");
-      const em = Math.max(lEm, rEm);
-      if (txt.trim()) textos[n] = txt;
-      if (em) textosEm[n] = em;
+    rTextos.forEach(function (t) {
+      if (estado.sujos.textos[t.nome]) return;
+      if (String(t.texto || "").trim()) textos[t.nome] = String(t.texto);
+      if (Number(t.editado_em)) textosEm[t.nome] = Number(t.editado_em);
+    });
+    Object.keys(estado.sujos.textos).forEach(function (n) {
+      if (estado.textos[n]) textos[n] = estado.textos[n];
+      if (estado.textosEm[n]) textosEm[n] = estado.textosEm[n];
     });
 
-    return { itens: itens, textos: textos, textosEm: textosEm, removidos: removidos };
-  }
-
-  function aplicarMescla(m) {
-    estado.itens = m.itens;
-    estado.textos = m.textos;
-    estado.textosEm = m.textosEm;
-    estado.removidos = m.removidos;
+    estado.itens = itens;
+    estado.textos = textos;
+    estado.textosEm = textosEm;
+    if (!atual()) estado.atual = sortear();
     salvar();
   }
 
   function retrato() {
-    return estado.itens.map(i => i.id + ":" + i.contagem).join("|");
+    return estado.itens.map(i => i.id + ":" + i.contagem + ":" + i.editadoEm).join("|");
   }
 
   async function sincronizar(porOrdem) {
-    if (!sincLigada()) { if (porOrdem) avisar("A sincronia não está configurada"); return; }
+    if (!sincLigada()) { if (porOrdem) avisar("Falta digitar a senha em Dados"); return; }
     if (sincronizando) { sincPendente = true; return; }
     sincronizando = true;
     sincErro = "";
@@ -1061,37 +1114,22 @@
 
     const antes = retrato();
     try {
-      let gravou = false, enviado = null;
-      for (let tentativa = 0; tentativa < 3 && !gravou; tentativa++) {
-        const lido = await lerRemoto();
-        aplicarMescla(mesclar(lido.dados));
-        enviado = paraRemoto();
-        gravou = await escreverRemoto(enviado, lido.sha);
-      }
-      if (gravou) {
-        /* base é o que foi REALMENTE gravado, não o que a tela mostra agora.
-           A gravação leva segundos, e um "Rezei" apertado nesse intervalo não
-           entrou no que foi enviado: se o base andasse até a contagem atual,
-           essa reza seria dada por guardada e a sincronia seguinte a apagaria.
-           Assim ela continua pendente e vai na próxima. */
-        estado.itens.forEach(function (i) {
-          const guardado = enviado.itens[i.id];
-          i.base = guardado ? guardado.contagem : 0;
-        });
-        estado.forcarEnvio = false;
+      if (!estado.ligado) await primeiraVez(porOrdem);
+      if (estado.ligado) {
+        await enviarPendencias();
+        await relerBanco();
+        estado.sincEm = Date.now();
         salvar();
-        sinc.em = Date.now();
-        salvarSinc();
-      } else {
-        sincErro = "outro aparelho gravou ao mesmo tempo";
+        if (porOrdem) avisar("Sincronizado");
+      } else if (porOrdem && sincErro) {
+        avisar("Não sincronizou: " + sincErro);
       }
       const mudou = retrato() !== antes;
       pintarPrincipal();
       if (!telaLista.hidden) pintarLista();
       if (!telaOracoes.hidden && mudou) pintarOracoes(null);
-      if (porOrdem && gravou) avisar("Sincronizado");
     } catch (e) {
-      sincErro = e && e.message ? e.message : "falhou";
+      sincErro = erroDeRede(e);
       if (porOrdem) avisar("Não sincronizou: " + sincErro);
     } finally {
       sincronizando = false;
@@ -1104,7 +1142,7 @@
     if (!sincLigada()) return;
     clearTimeout(sincTimer);
     sincTimer = setTimeout(function () { sincronizar(false); },
-                           atraso == null ? 20000 : atraso);
+                           atraso == null ? 8000 : atraso);
   }
 
   /* ── a tela da sincronia ── */
@@ -1122,54 +1160,74 @@
   function pintarSinc() {
     const eco = $("#sinc-estado");
     if (!eco) return;
-    const pendente = estado.itens.reduce((s, i) => s + Math.abs(i.contagem - i.base), 0);
+    const pend = pendentes();
     let txt;
-    if (!sincLigada()) {
-      txt = "Desligada. As contagens ficam só neste aparelho.";
+    if (!bancoNoCodigo()) {
+      txt = "O banco ainda não foi ligado nesta versão do app. Tudo fica guardado neste aparelho.";
+    } else if (!sincLigada()) {
+      txt = sessaoPerdida
+        ? "A senha precisa ser digitada de novo. Enquanto isso, as rezas ficam guardadas neste aparelho."
+        : "Desligada. Digite a senha para juntar este celular ao banco." +
+          (pend ? "  ·  " + pend + " por enviar" : "");
     } else if (sincronizando) {
       txt = "Sincronizando…";
     } else if (sincErro) {
-      txt = "A última tentativa falhou: " + sincErro + ".";
+      txt = "A última tentativa falhou: " + sincErro + "." +
+            (pend ? "  ·  " + pend + " por enviar" : "");
     } else {
-      txt = "Ligada em " + SINC_ALVO + "  ·  " + quandoFoi(sinc.em) +
-            (pendente ? "  ·  " + pendente + " por enviar" : "");
+      txt = "Ligada" + (aparelho ? " como “" + aparelho + "”" : "") + "  ·  " +
+            quandoFoi(estado.sincEm) + (pend ? "  ·  " + pend + " por enviar" : "");
     }
     eco.textContent = txt;
-    eco.classList.toggle("sinc-erro", !!sincErro);
+    eco.classList.toggle("sinc-erro", !!sincErro || sessaoPerdida);
     // o alerta no alto da tela principal só aparece quando há o que avisar
-    $("#sinc-alerta").hidden = !(sincLigada() && sincErro);
-    $("#btn-sinc-desligar").hidden = !sincLigada();
+    $("#sinc-alerta").hidden = !((sincLigada() && sincErro) || sessaoPerdida);
+    $("#sinc-campos").hidden = !bancoNoCodigo() || sincLigada();
     $("#btn-sinc-agora").hidden = !sincLigada();
-    $("#btn-sinc-config").textContent = sincLigada() ? "Trocar o token" : "Configurar";
+    $("#btn-sinc-sair").hidden = !sincLigada();
+    $("#btn-copia-enviar").hidden = !sincLigada();
+    if (!$("#sinc-aparelho").value) $("#sinc-aparelho").value = aparelho;
   }
 
-  function abrirConfigSinc() {
-    const campos = $("#sinc-campos");
-    campos.hidden = !campos.hidden;
-    if (campos.hidden) return;
-    $("#sinc-alvo").textContent = SINC_ALVO;
-    $("#sinc-token").value = "";
-    $("#sinc-token").placeholder = sinc.token ? "token guardado — preencha só para trocar" : "github_pat_…";
-    setTimeout(() => $("#sinc-token").focus(), 60);
+  async function entrar() {
+    const nome = $("#sinc-aparelho").value.trim().slice(0, 60);
+    const senha = $("#sinc-senha").value;
+    if (!nome) { avisar("Falta o nome deste celular"); $("#sinc-aparelho").focus(); return; }
+    if (!senha) { avisar("Falta a senha"); $("#sinc-senha").focus(); return; }
+    const bt = $("#btn-sinc-entrar");
+    bt.disabled = true;
+    bt.textContent = "Entrando…";
+    try {
+      gravarSessao(await pedirSessao({ email: SUPA_EMAIL, password: senha }, "password"));
+      aparelho = nome;
+      try { localStorage.setItem(CHAVE_APARELHO, nome); } catch (e) { /* fica só nesta sessão */ }
+      sessaoPerdida = false;
+      $("#sinc-senha").value = "";
+      pintarSinc();
+      await sincronizar(true);
+    } catch (e) {
+      avisar("Não entrou: " + erroDeRede(e));
+    } finally {
+      bt.disabled = false;
+      bt.textContent = "Entrar";
+    }
   }
 
-  function guardarConfigSinc() {
-    const token = $("#sinc-token").value.trim();
-    if (!token) { avisar("Falta o token"); return; }
-    sinc.token = token;
-    salvarSinc();
-    $("#sinc-token").value = "";
-    $("#sinc-campos").hidden = true;
+  function sair() {
+    if (!confirm("Sair do banco neste celular? O que ainda não foi enviado continua guardado aqui.")) return;
+    gravarSessao(null);
+    sincErro = "";
     pintarSinc();
-    sincronizar(true);
+    avisar("Saiu do banco");
   }
 
-  function desligarSinc() {
-    if (!confirm("Desligar a sincronia e apagar o token deste aparelho?")) return;
-    sinc.token = ""; sinc.em = 0;
-    salvarSinc();
-    pintarSinc();
-    avisar("Sincronia desligada");
+  async function enviarCopiaAgora() {
+    try {
+      await enviarCopia("botão");
+      avisar("Cópia enviada ao banco");
+    } catch (e) {
+      avisar("A cópia não foi: " + erroDeRede(e));
+    }
   }
 
   /* ─────────────────────────── Ligações ─────────────────────────── */
@@ -1255,13 +1313,12 @@
   document.querySelectorAll(".ordem").forEach(function (bt) {
     bt.addEventListener("click", () => trocarOrdem(bt.dataset.ordem));
   });
-  $("#btn-copiar").addEventListener("click", copiarArquivo);
-  $("#btn-baixar").addEventListener("click", baixarArquivo);
-  $("#btn-zerar").addEventListener("click", zerarContagens);
-  $("#btn-sinc-config").addEventListener("click", abrirConfigSinc);
-  $("#btn-sinc-guardar").addEventListener("click", guardarConfigSinc);
+  $("#btn-copia-baixar").addEventListener("click", baixarCopia);
+  $("#btn-copia-enviar").addEventListener("click", enviarCopiaAgora);
+  $("#btn-sinc-entrar").addEventListener("click", entrar);
+  $("#sinc-senha").addEventListener("keydown", function (e) { if (e.key === "Enter") entrar(); });
   $("#btn-sinc-agora").addEventListener("click", () => sincronizar(true));
-  $("#btn-sinc-desligar").addEventListener("click", desligarSinc);
+  $("#btn-sinc-sair").addEventListener("click", sair);
 
   document.addEventListener("keydown", function (e) {
     if (e.key !== "Escape") return;
@@ -1272,6 +1329,7 @@
     if (e.key === "Enter") salvarForm(false);
   });
 
+  salvar();            // primeira abertura desta versão: o estado novo passa a existir
   pintarPrincipal();
   pintarSinc();
 

@@ -509,6 +509,7 @@ input[type=range]::-moz-range-thumb{
 /* ── sincronia ── */
 #sinc-estado.sinc-erro{ color: var(--rubrica); }
 #sinc-campos{ margin-top: 18px; }
+#btn-sinc-entrar{ width: 100%; }
 .campo-sinc{ display: block; margin-bottom: 14px; }
 .campo-sinc span{
   display: block; margin-bottom: 6px;

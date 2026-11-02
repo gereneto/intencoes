@@ -1,5 +1,5 @@
 /* Intenções — cache do app. Suba o número da versão a cada mudança nos arquivos. */
-const CACHE = "rezar-por-v14";
+const CACHE = "rezar-por-v15";
 const ARQUIVOS = [
   "./", "./index.html", "./estilo.css", "./app.js", "./dados.js",
   "./manifest.json", "./icone-192.png", "./icone-512.png"
@@ -20,6 +20,7 @@ self.addEventListener("activate", e => {
 self.addEventListener("fetch", e => {
   if (e.request.method !== "GET") return;
   const url = new URL(e.request.url);
+  if (url.origin !== self.location.origin) return;   // o banco vai sempre pela rede
   // dados.js primeiro pela rede, para pegar o que foi enviado ao GitHub
   if (url.pathname.endsWith("dados.js")) {
     e.respondWith(

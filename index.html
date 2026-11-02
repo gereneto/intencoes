@@ -127,33 +127,35 @@
   </header>
 
   <div class="manutencao">
-    <h2 class="rubrica">Sincronizar sozinho</h2>
+    <h2 class="rubrica">Sincronizar</h2>
     <p class="nota" id="sinc-estado">Desligada.</p>
 
     <div id="sinc-campos" hidden>
       <label class="campo-sinc">
-        <span>Token</span>
-        <input type="password" id="sinc-token" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="github_pat_…">
+        <span>Nome deste celular</span>
+        <input type="text" id="sinc-aparelho" maxlength="60" autocomplete="off" placeholder="Geremias, primo…">
       </label>
-      <p class="nota">Token restrito a <code id="sinc-alvo"></code>, com permissão de escrita em Contents. Fica guardado só neste aparelho e nunca entra no <code>dados.js</code> nem no repositório do app.</p>
-      <button type="button" class="botao secundario largo" id="btn-sinc-guardar">Guardar e sincronizar</button>
+      <label class="campo-sinc">
+        <span>Senha</span>
+        <input type="password" id="sinc-senha" autocomplete="current-password" autocapitalize="none" spellcheck="false">
+      </label>
+      <p class="nota">A mesma senha nos dois celulares, digitada uma vez em cada um. Ao entrar, antes de mexer em qualquer coisa, o celular manda ao banco uma cópia de tudo o que guarda.</p>
+      <button type="button" class="botao secundario largo" id="btn-sinc-entrar">Entrar</button>
     </div>
 
     <div class="linha-botoes">
-      <button type="button" class="botao secundario" id="btn-sinc-config">Configurar</button>
       <button type="button" class="botao secundario" id="btn-sinc-agora" hidden>Sincronizar agora</button>
     </div>
-    <button type="button" class="perigo" id="btn-sinc-desligar" hidden>Desligar e apagar o token</button>
+    <button type="button" class="perigo" id="btn-sinc-sair" hidden>Sair do banco neste celular</button>
   </div>
 
   <div class="manutencao">
-    <h2 class="rubrica">Guardar no GitHub</h2>
-    <p class="nota">As contagens e os textos das orações ficam no aparelho. Para levá-los ao repositório e a outros aparelhos, gere o arquivo <code>dados.js</code> e faça o commit por cima do antigo.</p>
+    <h2 class="rubrica">Cópia deste celular</h2>
+    <p class="nota">Tudo o que este celular guarda — intenções, contagens, textos e o que ainda não foi enviado — num arquivo só. Serve para recuperar o que só este aparelho tem.</p>
     <div class="linha-botoes">
-      <button type="button" class="botao secundario" id="btn-copiar">Copiar dados.js</button>
-      <button type="button" class="botao secundario" id="btn-baixar">Baixar dados.js</button>
+      <button type="button" class="botao secundario" id="btn-copia-enviar" hidden>Enviar ao banco</button>
+      <button type="button" class="botao secundario" id="btn-copia-baixar">Baixar arquivo</button>
     </div>
-    <button type="button" class="perigo" id="btn-zerar">Zerar todas as contagens</button>
   </div>
 
 </section>
